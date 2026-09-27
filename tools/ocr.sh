@@ -7,6 +7,11 @@
 #
 # Формулы не распознаются и не должны: цель — сделать текст искомым и
 # цитируемым, выкладки читаются с самого скана.
+#
+# FORCE=1 — распознать заново поверх существующего текстового слоя. Нужно, когда
+# слой есть, но нечитаем: у сканов с подложенным «текстом» без ToUnicode вся
+# кириллица выходит знаками «?». Проверять долю кириллицы (tools/readable.sh),
+# а не длину: длина в таком файле нормальная.
 set -uo pipefail
 command -v ocrmypdf >/dev/null || { echo "нет ocrmypdf"; exit 1; }
 command -v tesseract >/dev/null || { echo "нет tesseract"; exit 1; }
@@ -34,7 +39,8 @@ for src in "$@"; do
   fi
 
   echo "== OCR: $stem"
-  if ocrmypdf -l rus --skip-text --optimize 1 --jobs "$JOBS" \
+  mode="--skip-text"; [ "${FORCE:-0}" = "1" ] && mode="--force-ocr"
+  if ocrmypdf -l rus $mode --optimize 1 --jobs "$JOBS" \
        --sidecar "$txt" "$work" "$pdf" 2>"$out/$stem.log"; then
     printf '   готово: %s знаков\n' "$(wc -c <"$txt")"
   else
