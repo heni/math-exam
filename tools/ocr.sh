@@ -8,6 +8,11 @@
 # Формулы не распознаются и не должны: цель — сделать текст искомым и
 # цитируемым, выкладки читаются с самого скана.
 #
+# LANG=eng — распознавать как англоязычный текст (по умолчанию rus). Обязательно для
+# англоязычных сканов: tesseract с -l rus подбирает кириллические похожие буквы и
+# выдаёт правдоподобный мусор («МАМАСЕМЕМТ ЗСЕМСЕ» вместо «MANAGEMENT SCIENCE»),
+# не сообщая об ошибке. LANG=rus+eng — для смешанных.
+#
 # FORCE=1 — распознать заново поверх существующего текстового слоя. Нужно, когда
 # слой есть, но нечитаем: у сканов с подложенным «текстом» без ToUnicode вся
 # кириллица выходит знаками «?». Проверять долю кириллицы (tools/readable.sh),
@@ -15,7 +20,10 @@
 set -uo pipefail
 command -v ocrmypdf >/dev/null || { echo "нет ocrmypdf"; exit 1; }
 command -v tesseract >/dev/null || { echo "нет tesseract"; exit 1; }
-tesseract --list-langs 2>/dev/null | grep -qx rus || { echo "нет языка rus для tesseract"; exit 1; }
+LANG="${LANG_OCR:-rus}"
+for l in ${LANG//+/ }; do
+  tesseract --list-langs 2>/dev/null | grep -qx "$l" || { echo "нет языка $l для tesseract"; exit 1; }
+done
 
 JOBS="${JOBS:-$(( $(nproc) > 4 ? 4 : 1 ))}"
 fail=0
@@ -40,7 +48,7 @@ for src in "$@"; do
 
   echo "== OCR: $stem"
   mode="--skip-text"; [ "${FORCE:-0}" = "1" ] && mode="--force-ocr"
-  if ocrmypdf -l rus $mode --optimize 1 --jobs "$JOBS" \
+  if ocrmypdf -l "$LANG" $mode --optimize 1 --jobs "$JOBS" \
        --sidecar "$txt" "$work" "$pdf" 2>"$out/$stem.log"; then
     printf '   готово: %s знаков\n' "$(wc -c <"$txt")"
   else
