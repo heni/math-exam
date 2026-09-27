@@ -8,6 +8,11 @@
 # Формулы не распознаются и не должны: цель — сделать текст искомым и
 # цитируемым, выкладки читаются с самого скана.
 #
+# Распознанный PDF по умолчанию НЕ сохраняется: он дублирует исходник, а при
+# конверсии из djvu страницы растеризуются и файл раздувается (одна книга 9,4 МБ
+# превратилась в 377 МБ; тринадцать копий занимали 808 МБ). Для поиска достаточно
+# .txt, формулы читаются с исходного скана. KEEP_PDF=1 — сохранить копию.
+#
 # LANG=eng — распознавать как англоязычный текст (по умолчанию rus). Обязательно для
 # англоязычных сканов: tesseract с -l rus подбирает кириллические похожие буквы и
 # выдаёт правдоподобный мусор («МАМАСЕМЕМТ ЗСЕМСЕ» вместо «MANAGEMENT SCIENCE»),
@@ -32,7 +37,8 @@ for src in "$@"; do
   [ -e "$src" ] || { echo "нет файла: $src"; fail=1; continue; }
   dir=$(dirname "$src"); base=$(basename "$src"); stem="${base%.*}"
   out="$dir/.ocr"; mkdir -p "$out"
-  txt="$out/$stem.txt"; pdf="$out/$stem.pdf"
+  txt="$out/$stem.txt"
+  if [ "${KEEP_PDF:-0}" = "1" ]; then pdf="$out/$stem.pdf"; else pdf="$out/$stem.tmp.pdf"; fi
 
   if [ -s "$txt" ]; then echo "== пропуск (уже есть): $stem"; continue; fi
 
@@ -51,6 +57,7 @@ for src in "$@"; do
   if ocrmypdf -l "$LANG" $mode --optimize 1 --jobs "$JOBS" \
        --sidecar "$txt" "$work" "$pdf" 2>"$out/$stem.log"; then
     printf '   готово: %s знаков\n' "$(wc -c <"$txt")"
+    [ "${KEEP_PDF:-0}" = "1" ] || rm -f "$pdf"
   else
     echo "   ОШИБКА, см. $out/$stem.log"; tail -3 "$out/$stem.log" | sed 's/^/     /'; fail=1
   fi
