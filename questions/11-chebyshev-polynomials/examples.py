@@ -44,11 +44,18 @@ GOLDEN = {
     "lp_min_n5": (0.062499999639000006, 1e-9),
     "lp_coef_err_n5": (3.60999896642511e-10, 0.05),
     "monic_random_min_n5": (0.1077807889499662, 1e-9),
-    # pure round-off magnitude: only the order is reproducible
+    # round-off magnitude: stable to a few percent across runs of this
+    # numpy/sympy, but not a mathematical constant — hence the loose tolerance
     "mono_err_T40": (0.02947126863474181, 0.05),
     # measured convergence of the iteration, single-threaded BLAS
     "iter_cheb_n50": (5.792042179805339e-05, 1e-6),
     "iter_stat_n50": (0.09551662560577172, 1e-6),
+    # interpolation error quoted on the slides. Only the Chebyshev value is
+    # pinned: the uniform one at n = 64 is round-off amplified by a Lebesgue
+    # constant of order 1e14 and changes severalfold between runs of the same
+    # code, so only its order of magnitude is asserted below.
+    "interp_cheb_n64": (0.009185244288825594, 1e-9),
+    "interp_unif_n32": (105720.1714808155, 1e-4),
 }
 
 
@@ -67,7 +74,7 @@ GRID = np.linspace(-1.0, 1.0, 200_001)   # dense grid for the uniform norm
 
 
 def cheb_T(n, x):
-    """T_n(x) by the recurrence of the recurrence theorem: valid on all of R."""
+    """T_n(x) by the three-term recurrence: the only form valid on all of R."""
     t_prev, t_cur = np.ones_like(np.asarray(x, dtype=float)), np.asarray(x, dtype=float)
     if n == 0:
         return t_prev
@@ -147,7 +154,7 @@ check_golden("monic_random_min_n5", float(norms_roots.min()))
 
 # %%
 print("\n1c. Минимакс как задача линейного программирования")
-# min t по (c, t) при |x^n + sum c_i x^i| <= t во всех узлах сетки.
+# min t over (c, t) subject to |x^n + sum c_i x^i| <= t at every grid node
 grid_lp = np.linspace(-1.0, 1.0, 2001)
 for n in (3, 5, 8):
     P = np.stack([grid_lp ** i for i in range(n)], axis=1)
@@ -201,8 +208,9 @@ check_golden("T10_at_1.1", by_rec)
 # **меньше** теоретического минимума (при $n=8$ — на $2\cdot10^{-6}$
 # относительно), потому что дискретизация ослабляет задачу; но при $n=3$ LP
 # совпал с $2^{-2}$ до всех печатаемых знаков. Причина видна, если посмотреть,
-# где у $\widetilde T_3$ точки чередования: это $0$, $\pm\tfrac12$, $\pm1$, и все
-# они попадают в узлы сетки шага $10^{-3}$. Ослабления не происходит, когда
+# где у $\widetilde T_3$ точки чередования: это $\pm\tfrac12$ и $\pm1$, и все
+# они попадают в узлы сетки шага $10^{-3}$. (Нуль — корень $T_3$, а не точка
+# чередования: там ограничение LP не активно.) Ослабления не происходит, когда
 # ограничения, которые «держат» оптимум, проверяются точно. Так что строгое
 # неравенство — не свойство метода, а свойство сетки.
 #
@@ -217,7 +225,7 @@ check_golden("T10_at_1.1", by_rec)
 # точке (левая панель), почему приведённый многочлен Чебышёва минимален —
 # случайные приведённые многочлены той же степени выходят за полосу
 # $\pm2^{1-n}$ (средняя), и как быстро $T_n$ растёт вне отрезка (правая,
-# логарифмическая шкала — теорема о продолжении).
+# логарифмическая шкала — теорема о виде вне отрезка).
 
 # %%
 fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(9.6, 3.1), layout="constrained")
@@ -236,8 +244,8 @@ ax1.legend(fontsize=6, ncols=2, loc="lower right")
 n_ex = 5
 ax2.plot(xs_in, 2.0 ** (1 - n_ex) * cheb_T(n_ex, xs_in), linewidth=1.6,
          color="tab:red", label=r"$\widetilde T_5$", zorder=5)
-# три САМЫХ УДАЧНЫХ из 2000 случайных приведённых многочленов пункта 1b: если и они
-# выходят за полосу, то утверждение о минимуме видно, а не просто проиллюстрировано
+# the three best of the 2000 random monic polynomials of 1b: if even these
+# leave the band, the minimum is shown rather than merely illustrated
 for rank, idx in enumerate(np.argsort(norms_roots)[:3]):
     ax2.plot(xs_in, np.prod(xs_in[:, None] - roots[idx][None, :], axis=1),
              linewidth=0.9, linestyle="--",
@@ -294,6 +302,11 @@ for n in ns:
 err_unif, err_cheb = np.array(err_unif), np.array(err_cheb)
 assert err_unif[-1] > err_unif[0] * 1e6, "равномерные узлы должны расходиться"
 assert err_cheb[-1] < err_cheb[0] / 5, "чебышёвские узлы должны сходиться"
+check_golden("interp_cheb_n64", float(err_cheb[-1]))
+check_golden("interp_unif_n32", float(err_unif[list(ns).index(32)]))
+# n = 64 on uniform nodes is not a measurement any more: the computed value
+# varies severalfold between runs, so only the order is asserted
+assert err_unif[-1] > 1e12, "равномерные узлы при n = 64 должны давать > 1e12"
 
 # %%
 print("\n2b. Задача 4 конспекта: отрезок ряда по T_{2k} против оценки хвоста")
@@ -334,10 +347,17 @@ fig.savefig(f"{FIGDIR}/fig-02.pdf")
 
 # %% [markdown]
 # **Вывод.** Предсказание сбылось полностью: по равномерным узлам погрешность
-# выросла с $1{,}5\cdot10^{-1}$ при $n=4$ до $5{,}9\cdot10^{16}$ при $n=64$, по
-# чебышёвским — упала до $9{,}2\cdot10^{-3}$, причём произведение
+# выросла с $1{,}5\cdot10^{-1}$ при $n=4$ до $1{,}1\cdot10^{5}$ при $n=32$ и
+# далее за $10^{12}$, по чебышёвским — упала до $9{,}2\cdot10^{-3}$, причём произведение
 # $n\cdot\|f-L_nf\|$ растёт от $0{,}49$ до $0{,}59$, то есть скорость близка к
 # $C/n$ с $C\approx0{,}58$ и медленно подрастающей константой.
+#
+# Оговорка о последних столбцах равномерной колонки: при $n \ge 48$ константа
+# Лебега равномерной сетки превышает $10^{12}$, и вычисленный интерполянт уже
+# не приближение, а усиленный шум округления — конкретное значение меняется в
+# разы от прогона к прогону. Поэтому запинено значение при $n=32$, где счёт ещё
+# осмыслен, а для $n=64$ проверяется только порядок. Сам вывод о расходимости
+# это не трогает: он виден задолго до $n=48$.
 #
 # В 2b отношение измеренной погрешности к оценке хвоста ряда равно единице **с
 # точностью до четырёх знаков**, и это не совпадение: максимум разности
@@ -401,7 +421,7 @@ for n in ns_leb:
     leb_c.append(lc)
     print(f" {n:3d}   {lu:.4e}       {lc:.4f}          {2/np.pi*np.log(n+1)+1:.4f}")
 leb_u, leb_c = np.array(leb_u), np.array(leb_c)
-# геометрический рост против логарифмического: отношение соседних значений
+# geometric vs logarithmic growth: ratios of consecutive values
 print(f"  рост Lambda(равном.): отношения соседних = "
       f"{np.round(leb_u[1:]/leb_u[:-1], 2)}")
 print(f"  рост Lambda(чебыш.):  приращения = {np.round(np.diff(leb_c), 3)}")
@@ -442,6 +462,14 @@ fig.savefig(f"{FIGDIR}/fig-03.pdf")
 # вторым графиком: при $n=24$ константа Лебега равномерной сетки уже $1{,}4\cdot10^5$,
 # а чебышёвской — $3{,}0$. Множитель $1+\Lambda_n$ съедает любое убывание
 # $E_n(f)$ у равномерной сетки и почти ничего не съедает у чебышёвской.
+#
+# Предсказание о режимах роста сбылось, но с уточнением. У равномерной сетки
+# отношения соседних значений $\Lambda_n$ не постоянны, а растут:
+# $4{,}96 \to 12{,}55$, то есть рост **быстрее** любого геометрического $q^n$ с
+# фиксированным $q$ (оценка снизу $\Lambda_n \ge q^n$ из литературы этому не
+# противоречит — она нижняя). У чебышёвской сетки измеренные значения лежат
+# примерно на $2\%$ **ниже** ориентира $\tfrac{2}{\pi}\ln(n+1)+1$, а приращения
+# падают ($0{,}373 \to 0{,}111$), как и положено логарифму.
 
 # %% [markdown]
 # ## Пример 4. Чебышёвское ускорение итераций
@@ -583,8 +611,9 @@ fig.savefig(f"{FIGDIR}/fig-04.pdf")
 # при $n \le 40$, то есть норма погрешности **не растёт** — она просто перестаёт
 # убывать, и потеря идёт от взаимного уничтожения близких величин, а не от
 # переполнения. Большой промежуточный рост — наоборот, у перестановки:
-# $8{,}2\cdot10^{7}$ при $n=50$ и $3{,}9\cdot10^{9}$ при $n=60$, то есть около
-# девяти-десяти съеденных значащих цифр, — и именно она даёт верный итог.
+# $8{,}2\cdot10^{7}$ при $n=50$ и $3{,}9\cdot10^{9}$ при $n=60$, то есть восемь
+# съеденных значащих цифр при $n=50$ и около десяти при $n=60$, — и именно она
+# даёт верный итог.
 #
 # Вывод для практики: у чебышёвского набора цена не только в знании границ
 # спектра, но и в упорядочении параметров, причём «безопасный на вид» монотонный
