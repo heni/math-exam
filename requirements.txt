@@ -4,12 +4,17 @@
 # Сборка PDF требует не pip, а системных пакетов: pandoc, texlive (с beamer,
 # beamertheme-metropolis, polyglossia), шрифт Lato. См. docs/build.md.
 
-# --- ядро, уже установлено в системе ---
-numpy>=2.3
-scipy>=1.16
-matplotlib>=3.10
-sympy>=1.14
-pandas>=2.3
+# Проверенные версии зафиксированы в requirements-lock.txt (`make freeze`).
+# Полная установка с нуля: `make venv` — создаёт .venv, ставит всё отсюда и
+# регистрирует jupyter-kernel `math-exam` (без него `jupytext --execute` не
+# находит интерпретатор venv и падает до запуска ячеек).
+
+# --- ядро ---
+numpy>=2.3          # проверено на 2.5.3
+scipy>=1.16         # проверено на 1.18.1
+matplotlib>=3.10    # проверено на 3.11.2
+sympy>=1.14         # проверено на 1.14.0
+pandas>=2.3         # проверено на 3.0.6
 
 # --- ноутбуки: нужны для `make notebooks` ---
 jupytext>=1.16
