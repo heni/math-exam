@@ -1,6 +1,10 @@
 % Общая преамбула конспектов теории. Подключается через build/defaults-theory.yaml.
 \usepackage{amsmath,amssymb,amsthm,mathtools}
 
+% Плотная вёрстка одной колонкой (двухколоночная проверена и отвергнута: часть
+% выкладок шире колонки и печатается за полосу — см. docs/build.md).
+\emergencystretch=3em
+
 \theoremstyle{plain}
 \newtheorem{theorem}{Теорема}[section]
 \newtheorem{lemma}[theorem]{Лемма}

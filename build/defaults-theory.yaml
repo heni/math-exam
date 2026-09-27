@@ -13,16 +13,18 @@ resource-path:
   - assets
 variables:
   documentclass: scrartcl
+  # Две колонки и 10pt: конспект читают как справку, и плотность важнее
+  # воздуха. Широкие выкладки, не влезающие в колонку, набираются внутри
+  # окружения strip (см. build/preamble-theory.tex) — оно даёт полную ширину.
   classoption:
-    - DIV=12
     - parskip=half
   mainfont: DejaVu Serif
   sansfont: Lato
   monofont: DejaVu Sans Mono
   lang: ru
-  fontsize: 11pt
-  geometry: margin=25mm
-  linestretch: 1.05
+  fontsize: 10pt
+  geometry: margin=20mm
+  linestretch: 1.0
   colorlinks: true
   linkcolor: teal
   urlcolor: teal

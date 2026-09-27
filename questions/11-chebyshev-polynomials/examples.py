@@ -13,6 +13,13 @@
 # (остаточный член против константы Лебега).
 
 # %%
+# Single-threaded BLAS: example 4 measures round-off growth, and multi-threaded
+# reduction order makes those figures vary between runs. Must precede numpy.
+import os
+
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ[_v] = "1"
+
 import numpy as np
 import sympy as sp
 import matplotlib.pyplot as plt
@@ -20,38 +27,47 @@ from scipy.optimize import linprog
 from scipy.interpolate import BarycentricInterpolator
 
 SEED = 20260927
-rng = np.random.default_rng(SEED)
+rng = np.random.default_rng(SEED)          # examples 1-3
+rng_iter = np.random.default_rng(SEED + 4)  # example 4: own stream, see note below
 
 FIGDIR = "figures"
 
-# Golden-пины: сид и ожидаемые выходы зафиксированы константами. Расхождение
-# роняет сборку — иначе «воспроизводимость» проверялась бы согласованностью
-# прогона с самим собой.
+# Golden pins: seed AND expected output are frozen constants. Each tolerance is
+# set per pin — a blanket 1e-3 would pass a value wrong in its 4th digit.
+# Deterministic quantities get 1e-12; only round-off magnitudes get a loose one.
 GOLDEN = {
-    "T10_at_1.1": 42.21078277120007,      # theory.md, задача 2
-    "monic_min_n5": 0.0625,               # 2^{1-5}, theory.md (4.9)
-    "mono_err_T40": 2.947e-02,            # потеря точности при счёте по мономам
-    "omega_cheb_n20": 9.5367431640625e-07,  # 2*(1/2)^21
-    "q_50_kappa100": 8.780954309205613e-05,  # q_n при kappa = 100, n = 50
+    # analytic, exact to machine precision
+    "T10_at_1.1": (42.2107827712001, 1e-12),
+    "omega_cheb_n20": (9.536743164062564e-07, 1e-12),
+    "q_50_kappa100": (8.780539660391031e-05, 1e-12),
+    # measured on a grid / by a solver
+    "lp_min_n5": (0.062499999639000006, 1e-9),
+    "lp_coef_err_n5": (3.60999896642511e-10, 0.05),
+    "monic_random_min_n5": (0.1077807889499662, 1e-9),
+    # pure round-off magnitude: only the order is reproducible
+    "mono_err_T40": (0.02947126863474181, 0.05),
+    # measured convergence of the iteration, single-threaded BLAS
+    "iter_cheb_n50": (5.792042179805339e-05, 1e-6),
+    "iter_stat_n50": (0.09551662560577172, 1e-6),
 }
-TOL = 1e-3  # относительный допуск для пинов
 
 
-def check_golden(name, value, tol=TOL):
-    """Golden-пин: сверка с зафиксированной константой, а не с соседней ячейкой."""
-    want = GOLDEN[name]
+def check_golden(name, value):
+    """Compare against a frozen constant, never against a neighbouring cell."""
+    want, tol = GOLDEN[name]
     rel = abs(value - want) / abs(want)
     status = "ok" if rel <= tol else "РАСХОЖДЕНИЕ"
-    print(f"  пин {name}: получено {value:.12g}, ожидалось {want:.12g} ({status})")
+    print(f"  пин {name}: получено {value:.12g}, ожидалось {want:.12g} "
+          f"(допуск {tol:g}, {status})")
     assert rel <= tol, f"golden-пин {name} не сошёлся: {value} vs {want}"
 
 
 x_sym = sp.Symbol("x")
-GRID = np.linspace(-1.0, 1.0, 200_001)   # плотная сетка для равномерной нормы
+GRID = np.linspace(-1.0, 1.0, 200_001)   # dense grid for the uniform norm
 
 
 def cheb_T(n, x):
-    """T_n(x) по рекуррентности (3.1) — единственный способ, годный на всём R."""
+    """T_n(x) by the recurrence of the recurrence theorem: valid on all of R."""
     t_prev, t_cur = np.ones_like(np.asarray(x, dtype=float)), np.asarray(x, dtype=float)
     if n == 0:
         return t_prev
@@ -61,17 +77,16 @@ def cheb_T(n, x):
 
 
 def cheb_roots(n, a=-1.0, b=1.0):
-    """Нули T_{n+1}, пересчитанные на [a,b]: набор из n+1 узла, формула (5.6)."""
+    """Zeros of T_{n+1} mapped onto [a,b]: the n+1 optimal interpolation nodes."""
     k = np.arange(n + 1)
     t = np.cos((2 * k + 1) * np.pi / (2 * (n + 1)))
     return 0.5 * (a + b) + 0.5 * (b - a) * t
 
 
 def cheb_extrema(n, a=-1.0, b=1.0):
-    """Точки экстремума T_n, пересчитанные на [a,b]: тоже n+1 узел, формула (3.4).
+    """Extremum points of T_n mapped onto [a,b]: also n+1 nodes, but not optimal.
 
-    Второй набор, который в литературе тоже называют «узлами Чебышёва», —
-    пример 3 показывает, что он не оптимален.
+    The literature calls both sets "Chebyshev nodes"; example 3 measures the gap.
     """
     k = np.arange(n + 1)
     t = np.cos(k * np.pi / n)
@@ -125,7 +140,10 @@ print(f"  2000 многочленов со случайными корнями: 
 print(f"  2000 многочленов со случайными коэффициентами: min = {norms_coefs.min():.6f}, "
       f"медиана = {np.median(norms_coefs):.4f}")
 print(f"  теоретический минимум 2^(1-n) = {theory_min:.6f}")
+print("  нормы трёх лучших (они же на средней панели рис. 1):",
+      np.round(np.sort(norms_roots)[:3], 6))
 assert norms_roots.min() > theory_min and norms_coefs.min() > theory_min
+check_golden("monic_random_min_n5", float(norms_roots.min()))
 
 # %%
 print("\n1c. Минимакс как задача линейного программирования")
@@ -146,7 +164,9 @@ for n in (3, 5, 8):
           f"max|c_LP - c(Tm)| = {np.max(np.abs(res.x[:n] - exact)):.2e}")
     assert res.x[-1] <= 2.0 ** (1 - n) * (1 + 1e-12)
     assert np.max(np.abs(res.x[:n] - exact)) < 1e-5
-check_golden("monic_min_n5", theory_min)
+    if n == 5:
+        check_golden("lp_min_n5", float(res.x[-1]))
+        check_golden("lp_coef_err_n5", float(np.max(np.abs(res.x[:n] - exact))))
 
 # %%
 print("\n1d. Как НЕ надо считать T_n: по коэффициентам при степенях x")
@@ -158,7 +178,7 @@ for n in (20, 40, 60):
     print(f"  n = {n:2d}: max|моном - рекуррентность| = {err:.3e}, "
           f"max|коэффициент| = {np.max(np.abs(mono)):.2e}, при |T_n| <= 1")
     if n == 40:
-        check_golden("mono_err_T40", err, tol=0.05)
+        check_golden("mono_err_T40", err)
 ref_hi = np.array([float(sp.chebyshevt(60, sp.Float(v, 40))) for v in GRID[::20000]])
 print(f"  рекуррентность при n = 60: max|рекур - точно| = "
       f"{np.max(np.abs(cheb_T(60, GRID[::20000]) - ref_hi)):.3e}")
@@ -170,17 +190,21 @@ u = xv + np.sqrt(xv * xv - 1.0)
 by_outside = 0.5 * (u ** 10 + u ** -10)
 by_rec = float(cheb_T(10, np.array([xv]))[0])
 print(f"  u = {u:.7f}, u^10 = {u**10:.6f}, u^-10 = {u**-10:.9f}")
-print(f"  через (3.5): {by_outside:.10f}")
+print(f"  через теорему о виде вне отрезка: {by_outside:.10f}")
 print(f"  по рекуррентности: {by_rec:.10f}")
 print(f"  q_10 = 1/T_10(1.1) = {1.0/by_rec:.7f}")
 check_golden("T10_at_1.1", by_rec)
 
 # %% [markdown]
-# **Вывод.** Все три предсказания сбылись, включая знак расхождения в 1c: LP даёт
-# значение **меньше** теоретического минимума (при $n=8$ на $2\cdot10^{-6}$
-# относительно), потому что дискретизация ослабляет задачу. Это ровно тот случай,
-# когда «численный минимум ниже теоретического» — не ошибка теории, а свойство
-# постановки, и его надо было предсказать заранее.
+# **Вывод.** Предсказания (1) и (2) сбылись. Предсказание (3) сбылось частично, и
+# расхождение содержательное: при $n=5$ и $n=8$ LP действительно даёт значение
+# **меньше** теоретического минимума (при $n=8$ — на $2\cdot10^{-6}$
+# относительно), потому что дискретизация ослабляет задачу; но при $n=3$ LP
+# совпал с $2^{-2}$ до всех печатаемых знаков. Причина видна, если посмотреть,
+# где у $\widetilde T_3$ точки чередования: это $0$, $\pm\tfrac12$, $\pm1$, и все
+# они попадают в узлы сетки шага $10^{-3}$. Ослабления не происходит, когда
+# ограничения, которые «держат» оптимум, проверяются точно. Так что строгое
+# неравенство — не свойство метода, а свойство сетки.
 #
 # Пункт 1d показывает, что запись многочлена коэффициентами при степенях $x$ — не
 # просто «менее элегантна»: при $n=60$ вычисленное значение отличается от верного
@@ -201,7 +225,7 @@ fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(9.6, 3.1), layout="constraine
 xs_in = np.linspace(-1.0, 1.0, 2001)
 for k in range(6):
     ax1.plot(xs_in, cheb_T(k, xs_in), linewidth=1.2, label=f"$T_{k}$")
-ext5 = np.cos(np.arange(6) * np.pi / 5)          # точки экстремума T_5, формула (3.4)
+ext5 = cheb_extrema(5)                           # alternation points of T_5
 ax1.plot(ext5, cheb_T(5, ext5), "o", markersize=4, color="black", zorder=5)
 ax1.axhline(1, color="grey", linewidth=0.6)
 ax1.axhline(-1, color="grey", linewidth=0.6)
@@ -424,46 +448,56 @@ fig.savefig(f"{FIGDIR}/fig-03.pdf")
 #
 # **Вопрос.** Теорема о нормировке $P(0)=1$ даёт для явного метода
 # $x^j = x^{j-1} - \tau_j(Ax^{j-1}-f)$ оценку $\|e^n\| \le q_n\|e^0\|$ с
-# $q_n = 2\rho^n/(1+\rho^{2n})$, $\rho=(1-\sqrt\xi)/(1+\sqrt\xi)$. Насколько это
-# лучше наилучшего **постоянного** параметра $\tau = 2/(m+M)$, дающего $q_1^n$?
+# $q_n = 2\sigma^n/(1+\sigma^{2n})$, $\sigma=(1-\sqrt\eta)/(1+\sqrt\eta)$,
+# $\eta = \mu_{\min}/\mu_{\max}$. Насколько это лучше наилучшего
+# **постоянного** параметра $\tau = 2/(\mu_{\min}+\mu_{\max})$, дающего
+# $q_1^n$?
 #
-# **Предсказание.** Фактическое убывание не превзойдёт оценку (оценка верна для
-# худшего случая), чебышёвский набор при $n=50$ и $\varkappa=100$ даст около
-# $10^{-4}$ против $0{,}37$ у стационарного метода. Отдельно ожидаем **численную
-# неустойчивость**: множители $(1-\tau_j\lambda)$ по отдельности могут быть велики
-# по модулю, и при «естественном» порядке параметров промежуточная погрешность
-# растёт, съедая разрядность.
+# **Предсказание.** (1) Обе оценки окажутся верхними: фактическое убывание не
+# превзойдёт ни $q_n$, ни $q_1^n$. (2) При $n=50$ и $\varkappa=100$ чебышёвский
+# набор даст около $10^{-4}$, а оценка $q_1^{50}$ для стационарного метода —
+# $0{,}37$; фактическое убывание стационарного метода ожидаем того же порядка.
+# (3) Отдельно ожидаем **численную неустойчивость**: множители
+# $(1-\tau_j\lambda)$ по отдельности могут быть велики по модулю, и при
+# «естественном» порядке параметров промежуточная погрешность растёт, съедая
+# разрядность.
 
 # %%
-N = 200
-m_eig, M_eig = 1.0, 100.0
-kappa = M_eig / m_eig
-eigs = np.exp(np.linspace(np.log(m_eig), np.log(M_eig), N))
-Q, _ = np.linalg.qr(rng.standard_normal((N, N)))
+DIM = 200                              # matrix size; N is reserved for sample size
+mu_min, mu_max = 1.0, 100.0
+kappa = mu_max / mu_min
+eigs = np.exp(np.linspace(np.log(mu_min), np.log(mu_max), DIM))
+# own stream: changing the sample sizes of example 1 must not move these numbers
+Q, _ = np.linalg.qr(rng_iter.standard_normal((DIM, DIM)))
 A = (Q * eigs) @ Q.T
 A = 0.5 * (A + A.T)
-x_star = rng.standard_normal(N)
-e_start = -x_star                      # начальное приближение x^0 = 0
+x_star = rng_iter.standard_normal(DIM)
+e_start = -x_star                      # initial guess x^0 = 0
 
-xi = m_eig / M_eig
-rho = (1 - np.sqrt(xi)) / (1 + np.sqrt(xi))
-q_of = lambda n: 2 * rho ** n / (1 + rho ** (2 * n))
-q1 = (M_eig - m_eig) / (M_eig + m_eig)
-print(f"  kappa = {kappa:g}, rho = {rho:.6f}, q_1 = {q1:.6f}")
+eta = mu_min / mu_max
+sigma = (1 - np.sqrt(eta)) / (1 + np.sqrt(eta))
+
+
+def q_of(n):
+    return 2 * sigma ** n / (1 + sigma ** (2 * n))
+
+
+q1 = (mu_max - mu_min) / (mu_max + mu_min)
+print(f"  kappa = {kappa:g}, sigma = {sigma:.6f}, q_1 = {q1:.6f}")
 check_golden("q_50_kappa100", q_of(50))
 
 
 def cheb_taus(n):
     j = np.arange(1, n + 1)
-    lam = 0.5 * (m_eig + M_eig) + 0.5 * (M_eig - m_eig) * np.cos((2 * j - 1) * np.pi / (2 * n))
+    lam = 0.5 * (mu_min + mu_max) + 0.5 * (mu_max - mu_min) * np.cos((2 * j - 1) * np.pi / (2 * n))
     return 1.0 / lam
 
 
 def shuffled(taus):
-    """Перестановка параметров, при которой промежуточный рост меньше.
+    """Interleave small and large tau instead of using them in index order.
 
-    Порядок не меняет итоговый многочлен P_n, но меняет накопление ошибок
-    округления: крупные и мелкие tau чередуются.
+    Order does not change the resulting polynomial P_n, only round-off build-up;
+    which of the two orders is better is measured below, not assumed.
     """
     idx = np.argsort(taus)
     half = (len(taus) + 1) // 2
@@ -484,57 +518,81 @@ def run(taus):
 
 print("\n  n   чебыш. (по порядку)  чебыш. (перестановка)  оценка q_n   "
       "стационарный  оценка q_1^n")
-rows = []
+growth = []
 for n in (10, 20, 30, 40, 50, 60):
     h_nat = run(cheb_taus(n))
     h_sh = run(shuffled(cheb_taus(n)))
-    h_st = run(np.full(n, 2.0 / (m_eig + M_eig)))
-    rows.append((n, h_nat[-1], h_sh[-1], q_of(n), h_st[-1], q1 ** n, h_sh.max()))
+    h_st = run(np.full(n, 2.0 / (mu_min + mu_max)))
+    growth.append((n, h_sh.max(), h_nat.max()))
     print(f" {n:3d}   {h_nat[-1]:.4e}           {h_sh[-1]:.4e}            "
           f"{q_of(n):.4e}   {h_st[-1]:.4e}    {q1**n:.4e}")
     assert h_sh[-1] <= q_of(n) * (1 + 1e-9), "оценка q_n должна быть верхней"
     assert h_st[-1] <= q1 ** n * (1 + 1e-9), "оценка q_1^n должна быть верхней"
+    if n == 50:
+        check_golden("iter_cheb_n50", float(h_sh[-1]))
+        check_golden("iter_stat_n50", float(h_st[-1]))
 
-print("\n  промежуточный рост ||e^j||/||e^0|| при перестановке:")
-for n, _, _, _, _, _, mx in rows:
-    print(f"   n = {n:3d}: максимум по ходу = {mx:.3e}")
+print("\n  максимум ||e^j||/||e^0|| по ходу счёта:")
+for n, mx_sh, mx_nat in growth:
+    print(f"   n = {n:3d}: перестановка {mx_sh:.3e}, по порядку {mx_nat:.3e}")
 
 # %%
 n_show = 60
 h_nat = run(cheb_taus(n_show))
 h_sh = run(shuffled(cheb_taus(n_show)))
-h_st = run(np.full(n_show, 2.0 / (m_eig + M_eig)))
+h_st = run(np.full(n_show, 2.0 / (mu_min + mu_max)))
 steps = np.arange(n_show + 1)
 
+# colours are set explicitly: the text below names the curves by colour
 fig, ax = plt.subplots(figsize=(6.4, 3.8), layout="constrained")
-ax.semilogy(steps, h_st, "o--", markersize=3, label=r"стационарный, $\tau=2/(m+M)$")
+ax.semilogy(steps, h_st, "o--", markersize=3, color="tab:blue",
+            label=r"стационарный, $\tau=2/(\mu_{\min}+\mu_{\max})$")
 ax.semilogy(steps, q1 ** steps, ":", color="tab:blue", label=r"оценка $q_1^{\,n}$")
-ax.semilogy(steps, h_sh, "s-", markersize=3, label="чебышёвский набор (перестановка)")
-ax.semilogy(steps, [q_of(k) if k > 0 else 1.0 for k in steps], ":", color="tab:orange",
+ax.semilogy(steps, h_sh, "s-", markersize=3, color="tab:green",
+            label="чебышёвский набор (перестановка)")
+ax.semilogy(steps, [q_of(k) if k > 0 else 1.0 for k in steps], ":", color="tab:green",
             label=r"оценка $q_n$")
 ax.semilogy(steps, h_nat, "^-.", markersize=3, color="tab:red",
             label="чебышёвский набор (по порядку)")
 ax.set_xlabel("номер шага $n$")
 ax.set_ylabel(r"$\|e^n\|_2/\|e^0\|_2$")
-ax.set_title(rf"$\varkappa = {kappa:g}$, $N = {N}$")
+ax.set_title(rf"$\varkappa = {kappa:g}$, размер матрицы {DIM}")
 ax.legend(fontsize=7)
 fig.savefig(f"{FIGDIR}/fig-04.pdf")
 
 # %% [markdown]
-# **Вывод.** Количественная часть предсказания сбылась: при $n=50$ чебышёвский
-# набор даёт $6{,}3\cdot10^{-5}$ против $1{,}0\cdot10^{-1}$ у стационарного
-# метода — в $1{,}6$ тысячи раз меньше, и обе оценки ($q_n$ и $q_1^n$) оказались
-# верхними, как и должно быть.
+# **Вывод.** Предсказание (1) сбылось: обе оценки оказались верхними на всех
+# проверенных $n$. Предсказание (2) сбылось наполовину. Чебышёвский набор при
+# $n=50$ дал $5{,}79\cdot10^{-5}$ — как и ожидалось, порядка $10^{-4}$ и ниже
+# оценки $q_{50} = 8{,}78\cdot10^{-5}$. А вот стационарный метод дал
+# $9{,}55\cdot10^{-2}$ вместо ожидавшихся «того же порядка, что $0{,}37$»:
+# почти вчетверо меньше оценки. Причина в том, что $q_1^{n}$ — оценка для
+# худшего случая, когда вся погрешность сидит в собственных векторах на краях
+# спектра; здесь спектр заполнен логарифмически равномерно, и большая часть
+# компонент подавляется быстрее. Разрыв между чебышёвским и стационарным
+# методами всё равно велик: $9{,}55\cdot10^{-2}$ против $5{,}79\cdot10^{-5}$,
+# то есть в $1{,}6$ тысячи раз.
 #
-# Предсказание про неустойчивость тоже сбылось, и сильнее, чем ожидалось. При
-# «естественном» порядке параметров метод при $n=40$ уже даёт $2{,}3\cdot10^{-1}$
-# вместо $4{,}6\cdot10^{-4}$, а при $n=50$ **расходится**: вместо
-# $6{,}3\cdot10^{-5}$ получается $3{,}7\cdot10^{3}$ — начальная погрешность
-# выросла в три с половиной тысячи раз. Перестановка параметров исправляет итог,
-# но промежуточный рост остаётся: максимум $\|e^j\|/\|e^0\|$ по ходу при $n=60$
-# достигает $6{,}5\cdot10^{9}$, то есть съедено около десяти значащих цифр. При большем
-# $\varkappa$ этого запаса не хватит — поэтому в литературе для чебышёвского
-# набора отдельно строят устойчивые упорядочения параметров.
+# Предсказание (3) сбылось по факту и **не сбылось по механизму**, и это самое
+# полезное место примера. Неустойчивость есть: при «естественном» порядке
+# параметров метод при $n=40$ даёт $3{,}0\cdot10^{-1}$ вместо $4{,}7\cdot10^{-4}$,
+# а при $n=50$ и $n=60$ расходится — $6{,}2\cdot10^{3}$ и $2{,}7\cdot10^{7}$.
+# Но механизм оказался не тем, который предсказывался. Ожидался рост
+# промежуточной погрешности при естественном порядке; измерение показывает
+# обратное: у естественного порядка максимум $\|e^j\|/\|e^0\|$ равен единице
+# при $n \le 40$, то есть норма погрешности **не растёт** — она просто перестаёт
+# убывать, и потеря идёт от взаимного уничтожения близких величин, а не от
+# переполнения. Большой промежуточный рост — наоборот, у перестановки:
+# $8{,}2\cdot10^{7}$ при $n=50$ и $3{,}9\cdot10^{9}$ при $n=60$, то есть около
+# девяти-десяти съеденных значащих цифр, — и именно она даёт верный итог.
 #
-# Важно, что итоговый многочлен $P_n$ от порядка не зависит: расхождение двух
-# красных и синих кривых — целиком эффект округления, а не другая математика.
+# Вывод для практики: у чебышёвского набора цена не только в знании границ
+# спектра, но и в упорядочении параметров, причём «безопасный на вид» монотонный
+# порядок как раз и разрушает счёт. При большем $\varkappa$ запаса разрядности
+# не хватит и перестановке — поэтому для чебышёвского набора отдельно строят
+# устойчивые упорядочения.
+#
+# Важно, что итоговый многочлен $P_n$ от порядка не зависит: расхождение красной
+# кривой (естественный порядок) и зелёной (перестановка) — целиком эффект
+# округления, а не другая математика. Синяя кривая — другой метод, а не другой
+# порядок.
