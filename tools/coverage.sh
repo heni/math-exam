@@ -60,7 +60,10 @@ for f in sys.argv[1:]:
         n=hits[q]
         cells.append(' .' if n==0 else (f'{min(n,99):2d}' if n>=5 else ' ~'))
     print(f'{stem[:50]:52} ' + ' '.join(cells) + f'  {dens:6.1f}')
-json.dump(out,open('/tmp/claude-1000/-home-rutsh-math-exam/4ca4aff3-1817-445a-8cc5-979493c07a7d/scratchpad/coverage.json','w'),ensure_ascii=False,indent=1)
+# Матрица в JSON — по желанию, путём в COVERAGE_JSON. Абсолютного пути здесь быть не
+# должно: файл версионируется, а каталог сессии у каждого запуска свой.
+out_path=os.environ.get('COVERAGE_JSON')
+if out_path: json.dump(out,open(out_path,'w'),ensure_ascii=False,indent=1)
 print('\nлегенда:  ".": нет вхождений   "~": 1-4 (упоминание)   число: >=5 (тема обсуждается)')
 print('плотн. — доказательств на 100k знаков; <1 = книга без выкладок')
 PY
