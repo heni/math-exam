@@ -18,7 +18,11 @@
 \deftranslation[to=russian]{Remark}{Замечание}
 
 % beamer определяет theorem/lemma/corollary/definition/example/problem/proof сам,
-% но не remark и не notation — добавляем, иначе сборка падает на \begin{remark}.
+% но не remark, notation и proposition — добавляем, иначе сборка падает на
+% \begin{remark} и \begin{proposition}.
+\deftranslation[to=russian]{Proposition}{Предложение}
+\theoremstyle{plain}
+\newtheorem{proposition}{Предложение}
 \theoremstyle{remark}
 \newtheorem{remark}{Замечание}
 \newtheorem{notation}{Обозначения}

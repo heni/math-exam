@@ -56,6 +56,10 @@ GOLDEN = {
     # code, so only its order of magnitude is asserted below.
     "interp_cheb_n64": (0.009185244288825594, 1e-9),
     "interp_unif_n32": (105720.1714808155, 1e-4),
+    # example 5: taken from an actual run via repr(), never typed by hand
+    "cond_monomial_k25": (4.1969078584488384e17, 0.05),
+    "gap_monomial_k25": (0.008161495911899068, 0.05),
+    "discrete_orth_off": (1.9984014443252818e-16, 0.5),
 }
 
 
@@ -565,28 +569,85 @@ for n, mx_sh, mx_nat in growth:
     print(f"   n = {n:3d}: перестановка {mx_sh:.3e}, по порядку {mx_nat:.3e}")
 
 # %%
+# Panel (a): does acceleration actually converge faster than the stationary
+# method. Panel (b): how the step count to a fixed tolerance scales with kappa.
 n_show = 60
 h_nat = run(cheb_taus(n_show))
 h_sh = run(shuffled(cheb_taus(n_show)))
 h_st = run(np.full(n_show, 2.0 / (mu_min + mu_max)))
 steps = np.arange(n_show + 1)
 
-# colours are set explicitly: the text below names the curves by colour
-fig, ax = plt.subplots(figsize=(6.4, 3.8), layout="constrained")
-ax.semilogy(steps, h_st, "o--", markersize=3, color="tab:blue",
-            label=r"стационарный, $\tau=2/(\mu_{\min}+\mu_{\max})$")
-ax.semilogy(steps, q1 ** steps, ":", color="tab:blue", label=r"оценка $q_1^{\,n}$")
+TOL_ITER = 1e-6
+
+
+def steps_to_tol(kappa_value, tol=TOL_ITER):
+    """Smallest n with the guaranteed factor below tol, for both parameter sets."""
+    eta_k = 1.0 / kappa_value
+    sig_k = (1 - np.sqrt(eta_k)) / (1 + np.sqrt(eta_k))
+    q1_k = (kappa_value - 1) / (kappa_value + 1)
+    n_cheb = int(np.ceil(np.log(tol / 2) / np.log(sig_k)))
+    n_stat = int(np.ceil(np.log(tol) / np.log(q1_k)))
+    return n_cheb, n_stat
+
+
+kappas = np.array([10, 30, 100, 300, 1000, 3000, 10000], dtype=float)
+pairs = np.array([steps_to_tol(k) for k in kappas])
+print("\n  число шагов до множителя 1e-6:")
+print("  kappa   чебышёвский  стационарный  отношение  sqrt(kappa)")
+for kv, (nc, nst) in zip(kappas, pairs):
+    print(f"  {kv:7.0f}   {nc:9d}   {nst:10d}   {nst/nc:8.1f}   {np.sqrt(kv):9.1f}")
+
+fig, (axa, axb) = plt.subplots(1, 2, figsize=(9.2, 3.6), layout="constrained")
+
+# The Chebyshev parameter set depends on n, so the honest curve is the error
+# AFTER n steps, recomputed for each n — not one trajectory of a 60-step run.
+n_grid = np.arange(2, n_show + 1, 2)
+final_cheb = np.array([run(shuffled(cheb_taus(int(nn))))[-1] for nn in n_grid])
+final_stat = np.array([run(np.full(int(nn), 2.0 / (mu_min + mu_max)))[-1]
+                       for nn in n_grid])
+print("\n  погрешность после n шагов (n-шаговый набор пересчитан для каждого n):")
+for nn, fc, fs in list(zip(n_grid, final_cheb, final_stat))[::4]:
+    print(f"   n = {nn:3d}: чебышёвский {fc:.3e}, стационарный {fs:.3e}, "
+          f"выигрыш {fs/fc:.0f} раз")
+
+axa.semilogy(n_grid, final_stat, "o--", markersize=3, color="tab:blue",
+             label=r"стационарный, $\tau=2/(\mu_{\min}+\mu_{\max})$")
+axa.semilogy(n_grid, q1 ** n_grid, ":", color="tab:blue", label=r"оценка $q_1^{\,n}$")
+axa.semilogy(n_grid, final_cheb, "s-", markersize=3, color="tab:green",
+             label="чебышёвский набор")
+axa.semilogy(n_grid, [q_of(int(k)) for k in n_grid], ":", color="tab:green",
+             label=r"оценка $q_n$")
+axa.set_xlabel("число шагов $n$")
+axa.set_ylabel(r"$\|e^n\|_2/\|e^0\|_2$ после $n$ шагов")
+axa.set_title(rf"сходимость, $\kappa = {kappa:g}$", fontsize=9)
+axa.legend(fontsize=7)
+
+axb.loglog(kappas, pairs[:, 1], "o--", color="tab:blue", label="стационарный")
+axb.loglog(kappas, pairs[:, 0], "s-", color="tab:green", label="чебышёвский набор")
+axb.loglog(kappas, 0.5 * kappas * np.log(1 / TOL_ITER), ":", color="tab:blue",
+           label=r"$\frac{1}{2}\kappa\ln(1/\epsilon)$")
+axb.loglog(kappas, 0.5 * np.sqrt(kappas) * np.log(2 / TOL_ITER), ":", color="tab:green",
+           label=r"$\frac{1}{2}\sqrt{\kappa}\ln(2/\epsilon)$")
+axb.set_xlabel(r"$\kappa$")
+axb.set_ylabel("шагов до $10^{-6}$")
+axb.set_title("цена точности как функция обусловленности", fontsize=9)
+axb.legend(fontsize=7)
+fig.savefig(f"{FIGDIR}/fig-04.pdf")
+
+# %%
+# Separate figure: the same polynomial, two orders of the same parameters.
+fig, ax = plt.subplots(figsize=(6.4, 3.4), layout="constrained")
 ax.semilogy(steps, h_sh, "s-", markersize=3, color="tab:green",
-            label="чебышёвский набор (перестановка)")
-ax.semilogy(steps, [q_of(k) if k > 0 else 1.0 for k in steps], ":", color="tab:green",
-            label=r"оценка $q_n$")
+            label="перестановка (крупные и мелкие вперемежку)")
 ax.semilogy(steps, h_nat, "^-.", markersize=3, color="tab:red",
-            label="чебышёвский набор (по порядку)")
+            label="монотонный порядок параметров")
+ax.semilogy(steps, [q_of(k) if k > 0 else 1.0 for k in steps], ":", color="black",
+            label=r"оценка $q_n$")
 ax.set_xlabel("номер шага $n$")
 ax.set_ylabel(r"$\|e^n\|_2/\|e^0\|_2$")
-ax.set_title(rf"$\varkappa = {kappa:g}$, размер матрицы {DIM}")
+ax.set_title(r"один и тот же многочлен $P_n$, два порядка сомножителей", fontsize=9)
 ax.legend(fontsize=7)
-fig.savefig(f"{FIGDIR}/fig-04.pdf")
+fig.savefig(f"{FIGDIR}/fig-05.pdf")
 
 # %% [markdown]
 # **Вывод.** Предсказание (1) сбылось: обе оценки оказались верхними на всех
@@ -625,3 +686,125 @@ fig.savefig(f"{FIGDIR}/fig-04.pdf")
 # кривой (естественный порядок) и зелёной (перестановка) — целиком эффект
 # округления, а не другая математика. Синяя кривая — другой метод, а не другой
 # порядок.
+
+# %% [markdown]
+# ## Пример 5. Приближение измерений: тот же многочлен, разные базисы
+#
+# **Вопрос.** Пусть функция задана значениями в $n$ точках, и её приближают
+# многочленом степени $k < n$ по методу наименьших квадратов. Базис
+# $\{1,x,\dots,x^k\}$ и базис $\{T_0,\dots,T_k\}$ порождают **одно и то же**
+# подпространство $\mathcal{P}_k$, значит в точной арифметике дают **один и тот
+# же** многочлен. В чём тогда разница?
+#
+# **Предсказание.** Разница в трёх вещах, и ни одна не про скорость.
+# (1) Обусловленность: матрица нормальных уравнений в мономиальном базисе —
+# это матрица типа гильбертовой, её число обусловленности растёт с $k$
+# экспоненциально; в чебышёвском базисе она почти диагональна. Ожидаем, что
+# около $k=20$ мономиальный путь начнёт давать заметно другой многочлен, а к
+# $k=25$ ошибка станет видна невооружённым глазом.
+# (2) Коэффициенты при росте $k$: у Чебышёва младшие коэффициенты не должны
+# меняться, у мономов — должны меняться все.
+# (3) Если узлы измерений — чебышёвские, ожидаем **точную** дискретную
+# ортогональность, то есть коэффициенты одной свёрткой, без решения системы.
+
+# %%
+N_MEAS = 60
+runge = lambda t: 1.0 / (1.0 + 25.0 * t * t)
+
+x_unif = np.linspace(-1.0, 1.0, N_MEAS)
+x_cheb = cheb_roots(N_MEAS - 1)          # n чебышёвских узлов на [-1,1]
+
+print("5a. Обусловленность и точность двух базисов (узлы равномерные)")
+print("   k   cond(моном)   cond(Чебышёв)   расхождение многочленов")
+y_unif = runge(x_unif)
+cond_m, cond_c, gap = [], [], []
+ks = (5, 10, 15, 20, 25, 30)
+for k in ks:
+    Vm = np.vander(x_unif, k + 1, increasing=True)
+    Vc = np.polynomial.chebyshev.chebvander(x_unif, k)
+    cm = float(np.linalg.cond(Vm.T @ Vm))
+    cc = float(np.linalg.cond(Vc.T @ Vc))
+    # both solved the way "just least squares" is usually written: normal equations
+    coef_m = np.linalg.solve(Vm.T @ Vm, Vm.T @ y_unif)
+    coef_c = np.linalg.solve(Vc.T @ Vc, Vc.T @ y_unif)
+    ref = np.linalg.lstsq(Vc, y_unif, rcond=None)[0]     # reference: QR, good basis
+    d = float(np.max(np.abs(Vm @ coef_m - Vc @ ref)))
+    d_c = float(np.max(np.abs(Vc @ coef_c - Vc @ ref)))
+    cond_m.append(cm); cond_c.append(cc); gap.append((d, d_c))
+    print(f"  {k:3d}  {cm:.2e}      {cc:.2e}        моном {d:.2e}, Чебышёв {d_c:.2e}")
+check_golden("cond_monomial_k25", cond_m[ks.index(25)])
+check_golden("gap_monomial_k25", gap[ks.index(25)][0])
+
+# %%
+print("\n5b. Дискретная ортогональность в чебышёвских узлах")
+y_cheb = runge(x_cheb)
+V = np.polynomial.chebyshev.chebvander(x_cheb, 8)
+G = V.T @ V
+off = float(np.max(np.abs(G - np.diag(np.diag(G))))) / N_MEAS
+print(f"  максимум внедиагонального элемента Gram/n: {off:.2e}")
+print(f"  диагональ Gram/n: {np.round(np.diag(G) / N_MEAS, 6)}")
+coef_conv = (V.T @ y_cheb) / np.diag(G)          # one convolution, no system
+coef_lsq = np.linalg.lstsq(V, y_cheb, rcond=None)[0]
+print(f"  свёртка против МНК: расхождение {np.max(np.abs(coef_conv - coef_lsq)):.2e}")
+check_golden("discrete_orth_off", off)
+
+# %%
+print("\n5c. Что происходит с коэффициентами при росте k")
+print("   k   a_0..a_4 (Чебышёв)                              a_0..a_4 (мономы)")
+for k in (4, 8, 12):
+    Vc = np.polynomial.chebyshev.chebvander(x_cheb, k)
+    ac = np.linalg.lstsq(Vc, y_cheb, rcond=None)[0]
+    Vm = np.vander(x_cheb, k + 1, increasing=True)
+    am = np.linalg.lstsq(Vm, y_cheb, rcond=None)[0]
+    print(f"  {k:3d}  {np.round(ac[:5], 6)}  {np.round(am[:5], 4)}")
+
+# %%
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9.2, 3.6), layout="constrained")
+ax1.semilogy(ks, cond_m, "o--", color="tab:red", label=r"базис $\{x^i\}$")
+ax1.semilogy(ks, cond_c, "s-", color="tab:green", label=r"базис $\{T_i\}$")
+ax1.axhline(1 / np.finfo(float).eps, color="grey", linestyle=":",
+            label="машинная точность")
+ax1.set_xlabel("$k$")
+ax1.set_ylabel("число обусловленности")
+ax1.set_title("матрица нормальных уравнений", fontsize=9)
+ax1.legend(fontsize=7)
+
+ax2.semilogy(ks, [g[0] for g in gap], "o--", color="tab:red", label=r"базис $\{x^i\}$")
+ax2.semilogy(ks, [max(g[1], 1e-17) for g in gap], "s-", color="tab:green",
+             label=r"базис $\{T_i\}$")
+ax2.set_xlabel("$k$")
+ax2.set_ylabel("расхождение с эталоном")
+ax2.set_title("тот же многочлен, посчитанный двумя путями", fontsize=9)
+ax2.legend(fontsize=7)
+fig.savefig(f"{FIGDIR}/fig-06.pdf")
+
+# %% [markdown]
+# **Вывод.** Предсказание сбылось по всем трём пунктам, и количественно резче,
+# чем ожидалось.
+#
+# Обусловленность мономиальной матрицы растёт с $1{,}7\cdot10^{3}$ при $k=5$ до
+# $4{,}2\cdot10^{17}$ при $k=25$ — то есть переваливает за $1/\varepsilon_{\text{маш}}$,
+# и матрица становится машинно вырожденной. У чебышёвского базиса на том же
+# отрезке — от $6{,}1$ до $1{,}4\cdot10^{2}$. Следствие видно во втором столбце:
+# многочлен, посчитанный «в лоб» в мономиальном базисе, расходится с эталоном
+# на $8{,}2\cdot10^{-3}$ при $k=25$ — при том, что сама приближаемая функция по
+# модулю не превосходит единицы. Чебышёвский путь на тех же данных держит
+# $10^{-15}$. Подчеркнём: это **не** другое приближение — подпространство одно,
+# и в точной арифметике ответы совпали бы. Разница целиком в том, что один путь
+# считается, а другой нет.
+#
+# В чебышёвских узлах дискретная ортогональность выполняется **точно**:
+# наибольший внедиагональный элемент матрицы Грама, делённой на $n$, равен
+# $2\cdot10^{-16}$, диагональ — ровно $1, \tfrac12, \tfrac12, \dots$, как и
+# утверждает предложение конспекта. Коэффициенты, посчитанные одной свёрткой,
+# совпадают с решением задачи наименьших квадратов до $2\cdot10^{-16}$ — то есть
+# регрессию решать не надо вовсе.
+#
+# Третий пункт — самый практичный. При росте $k$ с 4 до 12 чебышёвские
+# коэффициенты $a_0,\dots,a_4$ не меняются ни в одном знаке:
+# $0{,}196116$, $0$, $-0{,}263611$, $0$, $0{,}177167$. Мономиальные меняются все:
+# $a_0$ идёт $0{,}6369 \to 0{,}8360 \to 0{,}9259$, $a_4$ — $1{,}42 \to 19{,}94
+# \to 71{,}81$. Практический смысл: степень можно наращивать, глядя на убывание
+# коэффициентов, и останавливаться, когда очередной мал, — ничего не
+# пересчитывая. В мономиальном базисе такой процедуры нет: каждое изменение $k$
+# даёт другой набор чисел, и судить по ним не о чем.

@@ -127,6 +127,29 @@ sys.exit(fail)
 PYCHK
 [ $? -eq 0 ] || fail=1
 
+echo "== 9. Разметка, просочившаяся в собранный PDF =="
+# Две тихие ловушки pandoc, обе уже случались на вопросе 11 и обе не видны в
+# логе сборки (docs/build.md, раздел «Разметка формул»):
+#   - markdown-эмфаза внутри \begin{theorem}...\end{theorem} печатается
+#     звёздочками: содержимое сырых LaTeX-окружений pandoc не разбирает;
+#   - «~\ref{...}» в markdown-прозе печатается видимой тильдой, потому что там
+#     обратная косая перед пунктуацией — экранирование.
+# Проверяем по собранному PDF, а не по исходнику: гейт обязан мерить то, что
+# увидит читатель.
+pdf_markup=0
+for pdf in questions/*/theory.pdf questions/*/slides.pdf; do
+  [ -e "$pdf" ] || continue
+  stars=$(pdftotext "$pdf" - 2>/dev/null | grep -c '\*\*' || true)
+  tildes=$(pdftotext -layout "$pdf" - 2>/dev/null | grep -c '~' || true)
+  [ "${stars:-0}" -gt 0 ] && { bad "$pdf: $stars строк с '**' — markdown внутри LaTeX-окружения"; pdf_markup=1; }
+  [ "${tildes:-0}" -gt 0 ] && { bad "$pdf: $tildes строк с видимой '~' — писать '\\ref' с обычным пробелом"; pdf_markup=1; }
+done
+if command -v pdftotext >/dev/null 2>&1; then
+  [ "$pdf_markup" -eq 0 ] && note "чисто"
+else
+  note "pdftotext не найден — пропуск"
+fi
+
 echo
 [ "$fail" -eq 0 ] && echo "ИТОГ: чисто" || echo "ИТОГ: есть замечания"
 exit "$fail"
