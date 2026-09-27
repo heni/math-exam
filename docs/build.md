@@ -46,12 +46,31 @@ make clean            # удалить собранные артефакты
 | шрифты DejaVu Serif / Sans Mono | — | ✓ |
 | Python | 3.12+ | 3.14.4 ✓ |
 | numpy, scipy, matplotlib, sympy, pandas | см. `requirements.txt` | ✓ |
-| jupytext, nbformat, nbconvert, ipykernel | — | **нет** |
-| scikit-learn, PyWavelets, statsmodels, control | — | **нет** |
+| jupytext, nbformat, nbconvert, ipykernel | — | ✓ (1.19.5 / 5.11.1 / 7.17.1 / 7.3.0) |
+| scikit-learn, PyWavelets, statsmodels, control | — | ✓ (1.9.1 / 1.10.0 / 0.15.0 / 0.10.2) |
+| jupyter-kernel `math-exam` | — | ✓ зарегистрирован |
 
 `pandoc-crossref` и `biber` отсутствуют, но не нужны: ссылки внутри документа
 идут через `\label`/`\ref` LaTeX, библиографии в материалах нет — источники
 перечисляются в `README.md` вопроса.
+
+## Окружение Python
+
+Пакеты ставятся в локальный `.venv`; Makefile берёт интерпретатор оттуда, если
+каталог есть, и системный, если нет. Установка с нуля:
+
+```bash
+make venv      # python -m venv .venv + requirements.txt + регистрация kernel'а
+make freeze    # зафиксировать фактические версии в requirements-lock.txt
+```
+
+**Регистрация kernel'а обязательна.** Без неё `jupytext --execute` падает с
+`No kernel found that matches the current python executable` — ещё до запуска
+ячеек. `make venv` делает это сам; вручную:
+
+```bash
+.venv/bin/python -m ipykernel install --user --name math-exam
+```
 
 ## Проверка сборки
 
@@ -85,4 +104,6 @@ pdftotext -bbox questions/11-chebyshev-polynomials/slides.pdf - | grep -c 'xMax=
 Отсюда правило: правка идёт **в `.py`**, затем `make notebooks`. Правка прямо
 в `.ipynb` теряется при следующей сборке. Сборка исполняет ноутбук, и падение
 ячейки роняет `make` — это гейт: невоспроизводимый пример не попадает в
-материалы.
+материалы. Проверено подстановкой падающей ячейки: `make` завершается с кодом 2,
+а прежний валидный `.ipynb` не перезаписывается (остаётся старше своего `.py`,
+и `make check` это показывает).

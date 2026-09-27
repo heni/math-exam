@@ -6,6 +6,8 @@
 #   make new Q=11             развернуть шаблоны в каталоге вопроса 11
 #   make theory | slides | notebooks
 #   make check                проверки согласованности
+#   make venv                 создать .venv и поставить requirements.txt
+#   make freeze               зафиксировать версии в requirements-lock.txt
 #   make clean                удалить собранные артефакты
 #
 # .PHONY-цели не параллелятся по вопросам сами: для параллельной сборки
@@ -15,6 +17,15 @@ PANDOC   := pandoc
 THEORY_YAML := build/defaults-theory.yaml
 SLIDES_YAML := build/defaults-slides.yaml
 
+# Питон берём из локального venv, если он есть, иначе системный: цели должны
+# работать и на чистой машине, где venv ещё не создан (там упадут с внятным
+# "not found", а не молча возьмут другой интерпретатор).
+VENV     := .venv
+VENV_BIN := $(CURDIR)/$(VENV)/bin
+PY       := $(if $(wildcard $(VENV_BIN)/python),$(VENV_BIN)/python,python3)
+PIP      := $(if $(wildcard $(VENV_BIN)/pip),$(VENV_BIN)/pip,pip3)
+JUPYTEXT := $(if $(wildcard $(VENV_BIN)/jupytext),$(VENV_BIN)/jupytext,jupytext)
+
 THEORY_SRC := $(wildcard questions/*/theory.md)
 SLIDES_SRC := $(wildcard questions/*/slides.md)
 NB_SRC     := $(wildcard questions/*/examples.py)
@@ -23,7 +34,7 @@ THEORY_PDF := $(THEORY_SRC:.md=.pdf)
 SLIDES_PDF := $(SLIDES_SRC:.md=.pdf)
 NB_OUT     := $(NB_SRC:.py=.ipynb)
 
-.PHONY: all theory slides notebooks check clean new list help
+.PHONY: all theory slides notebooks check clean new list help venv freeze
 
 all: theory slides notebooks
 
@@ -48,7 +59,7 @@ questions/%/slides.pdf: questions/%/slides.md $(SLIDES_YAML) build/preamble-slid
 # ячейки; при падении ячейки сборка падает — это гейт, а не помеха.
 questions/%/examples.ipynb: questions/%/examples.py
 	@echo "==> notebook: $*"
-	@cd questions/$* && jupytext --to ipynb --execute -o examples.ipynb examples.py
+	@cd questions/$* && $(JUPYTEXT) --to ipynb --execute -o examples.ipynb examples.py
 
 # Собрать всё по одному вопросу: make q11
 q%:
@@ -60,6 +71,19 @@ q%:
 	done; \
 	[ -f "$$dir/examples.py" ] && $(MAKE) --no-print-directory "$$dir/examples.ipynb"; \
 	true
+
+venv:
+	@test -d $(VENV) || python3 -m venv $(VENV)
+	@$(PIP) install --upgrade pip
+	@$(PIP) install -r requirements.txt
+	@# Без зарегистрированного kernel'а jupytext --execute не находит
+	@# интерпретатор venv и падает ещё до запуска ячеек.
+	@$(PY) -m ipykernel install --user --name math-exam --display-name "math-exam (.venv)"
+	@echo "готово: $(VENV)"
+
+freeze:
+	@$(PIP) freeze > requirements-lock.txt
+	@echo "записано: requirements-lock.txt"
 
 new:
 	@test -n "$(Q)" || { echo "использование: make new Q=11"; exit 1; }
