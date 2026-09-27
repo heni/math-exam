@@ -93,6 +93,40 @@ else
   note "git не инициализирован — пропуск"
 fi
 
+echo "== 8. Ссылки на литературу: [N] против набора и списка =="
+# Три независимые проверки, потому что рассинхронизироваться могут три вещи:
+# файлы в наборе, записи в списке литературы и ссылки [N] в текстах. Пропажа
+# библиографической записи однажды уже случилась молча при пересборке списка.
+python3 - <<'PYCHK'
+import re,glob,os,sys
+fail=0
+# 1) номера работ в наборе
+works=set()
+for f in glob.glob('deps/*.pdf')+glob.glob('deps/*.djvu'):
+    works.add(os.path.basename(f).split('_')[0])
+# 2) номера в списке литературы
+src=open('docs/sources.md',encoding='utf8').read()
+a=src.index('## Список литературы'); b=src.index('\n## ',a+5)
+biblio={f'{int(m.group(1)):02d}' for m in re.finditer(r'^(\d+)\.\s', src[a:b], re.M)}
+only_w=sorted(works-biblio); only_b=sorted(biblio-works)
+if only_w: print(f'  [!] работы без библиографической записи: {only_w}'); fail=1
+if only_b: print(f'  [!] записи без файла в наборе: {only_b}'); fail=1
+if not only_w and not only_b: print(f'  набор и список согласованы: {len(works)} работ')
+# 3) ссылки [N] во всех версионируемых текстах
+bad={}
+for p in ['docs/sources.md','docs/glossary.md','README.md','docs/style-guide.md']+glob.glob('questions/*/README.md'):
+    if not os.path.exists(p): continue
+    for m in re.finditer(r'\[(\d{1,2})\]', open(p,encoding='utf8').read()):
+        n=f'{int(m.group(1)):02d}'
+        if n not in works: bad.setdefault(p,set()).add(m.group(1))
+if bad:
+    fail=1
+    for p,ns in sorted(bad.items()): print(f'  [!] {p}: ссылки на несуществующие работы {sorted(ns)}')
+else: print('  все ссылки [N] указывают на существующие работы')
+sys.exit(fail)
+PYCHK
+[ $? -eq 0 ] || fail=1
+
 echo
 [ "$fail" -eq 0 ] && echo "ИТОГ: чисто" || echo "ИТОГ: есть замечания"
 exit "$fail"
