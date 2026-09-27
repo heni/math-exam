@@ -1,0 +1,43 @@
+% Общая преамбула презентаций (beamer/metropolis).
+% Теоремные окружения beamer определяет сам — здесь только их русские имена
+% и те же макросы обозначений, что в конспектах.
+\usepackage{amsmath,amssymb,mathtools}
+
+\setbeamertemplate{theorems}[numbered]
+\uselanguage{russian}
+\languagepath{russian}
+\deftranslation[to=russian]{Theorem}{Теорема}
+\deftranslation[to=russian]{Lemma}{Лемма}
+\deftranslation[to=russian]{Corollary}{Следствие}
+\deftranslation[to=russian]{Definition}{Определение}
+\deftranslation[to=russian]{Definitions}{Определения}
+\deftranslation[to=russian]{Example}{Пример}
+\deftranslation[to=russian]{Examples}{Примеры}
+\deftranslation[to=russian]{Proof}{Доказательство}
+\deftranslation[to=russian]{Problem}{Задача}
+\deftranslation[to=russian]{Remark}{Замечание}
+
+% beamer определяет theorem/lemma/corollary/definition/example/problem/proof сам,
+% но не remark и не notation — добавляем, иначе сборка падает на \begin{remark}.
+\theoremstyle{remark}
+\newtheorem{remark}{Замечание}
+\newtheorem{notation}{Обозначения}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\E}{\mathsf{E}}
+\newcommand{\Var}{\mathsf{D}}
+\newcommand{\Prob}{\mathsf{P}}
+\newcommand{\T}{^{\mathsf{T}}}
+\newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
+\newcommand{\abs}[1]{\left\lvert #1 \right\rvert}
+\newcommand{\scal}[2]{\left\langle #1, #2 \right\rangle}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator{\sgn}{sign}
+\DeclareMathOperator{\rank}{rank}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\supp}{supp}

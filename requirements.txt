@@ -1,0 +1,30 @@
+# Окружение для численных примеров (examples.py -> examples.ipynb).
+# Установка: pip install -r requirements.txt
+#
+# Сборка PDF требует не pip, а системных пакетов: pandoc, texlive (с beamer,
+# beamertheme-metropolis, polyglossia), шрифт Lato. См. docs/build.md.
+
+# --- ядро, уже установлено в системе ---
+numpy>=2.3
+scipy>=1.16
+matplotlib>=3.10
+sympy>=1.14
+pandas>=2.3
+
+# --- ноутбуки: нужны для `make notebooks` ---
+jupytext>=1.16
+nbformat>=5.10
+nbconvert>=7.16
+ipykernel>=6.29
+jupyterlab>=4.2
+
+# --- предметные, по вопросам ---
+scikit-learn>=1.5      # вопросы 02, 16, 18: регрессии, PCA/ICA, регуляризация
+PyWavelets>=1.6        # вопрос 05: вейвлет-анализ
+statsmodels>=0.14      # вопросы 14, 18: интервалы, гипотезы, диагностика регрессии
+control>=0.10          # вопрос 04: наблюдатели, place/lqr (иначе вручную через scipy)
+
+# --- опциональные, ставить по надобности ---
+# cvxpy>=1.5           # вопросы 10, 19: чебышёвское приближение как ЛП, проекции
+# pymc>=5.16           # вопрос 03: байесовский вывод на MCMC вместо ручного
+# arviz>=0.19          # к pymc

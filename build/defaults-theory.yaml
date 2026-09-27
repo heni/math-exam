@@ -1,0 +1,29 @@
+# Сборка конспекта теории: Markdown + TeX -> xelatex -> PDF.
+# Пути в resource-path/include-in-header заданы относительно корня проекта,
+# поэтому pandoc запускается ИЗ КОРНЯ (см. Makefile), а не из каталога вопроса.
+to: latex
+pdf-engine: xelatex
+number-sections: true
+toc: true
+toc-depth: 2
+include-in-header:
+  - build/preamble-theory.tex
+resource-path:
+  - .
+  - assets
+variables:
+  documentclass: scrartcl
+  classoption:
+    - DIV=12
+    - parskip=half
+  mainfont: DejaVu Serif
+  sansfont: Lato
+  monofont: DejaVu Sans Mono
+  lang: ru
+  fontsize: 11pt
+  geometry: margin=25mm
+  linestretch: 1.05
+  colorlinks: true
+  linkcolor: teal
+  urlcolor: teal
+  toc-title: Содержание
