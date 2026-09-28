@@ -157,7 +157,7 @@ grid = np.unique(np.logspace(0, np.log10(N_MAX), 220).astype(int))
 def median_deviation(draw, a, n_runs=N_RUNS_MED):
     """Median |mean_N - a| over an ensemble, evaluated on `grid`.
 
-    The ensemble size is chosen by the spread measured just above, not by guess.
+    The ensemble size is chosen by the spread measured in the cell below, not by guess.
     """
     acc = []
     for _ in range(n_runs // CHUNK):
@@ -263,6 +263,8 @@ fig.savefig(f"{FIGDIR}/fig-01.pdf", **SAVE_KW)
 eps, alpha = 0.01, 0.05
 z = stats.norm.ppf(1 - alpha / 2)
 print(f"z_(1-alpha/2) = {z:.6f}")
+print(f"квантиль z_0.75 (множитель вероятной ошибки) = {stats.norm.ppf(0.75):.4f}")
+print(f"правило трёх сигм: 2(1 - Phi(3)) = {2 * (1 - stats.norm.cdf(3)):.4f}")
 
 
 def sample_sizes(sigma2, eps, alpha, z):
@@ -273,7 +275,8 @@ for p in (0.5, P_RARE):
     s2 = p * (1 - p)
     n_cheb, n_clt = sample_sizes(s2, eps, alpha, z)
     print(f"p = {p}: sigma^2 = {s2:.4f}, N_Ч = {np.ceil(n_cheb):.0f}, "
-          f"N_ЦПТ = {np.ceil(n_clt):.0f}, отношение = {n_cheb / n_clt:.4f}")
+          f"N_ЦПТ = {n_clt:.1f} -> {np.ceil(n_clt):.0f}, "
+          f"отношение = {n_cheb / n_clt:.4f}")
     if p == 0.5:
         coin_cheb, coin_clt = n_cheb, n_clt
 
@@ -314,7 +317,8 @@ N_DICE = 1000
 mu_dice, sd_dice = N_DICE * m1, np.sqrt(N_DICE * d1)
 half = z * sd_dice
 print(f"один бросок: E = {m1}, D = {d1:.6f} (= 35/12 = {35/12:.6f})")
-print(f"сумма 1000 бросков: E = {mu_dice:.1f}, sigma = {sd_dice:.4f}")
+print(f"сумма 1000 бросков: E = {mu_dice:.1f}, D = {N_DICE * d1:.2f}, "
+      f"sigma = {sd_dice:.4f}")
 print(f"полуширина 95%-интервала = {half:.4f}, интервал [{mu_dice-half:.1f}; {mu_dice+half:.1f}]")
 print(f"длина = {2*half:.4f}, тривиальный интервал [1000; 6000] длиной 5000, "
       f"отношение = {5000/(2*half):.4f}")
@@ -408,8 +412,8 @@ fig.savefig(f"{FIGDIR}/fig-02.pdf", **SAVE_KW)
 # множитель? Верно ли ходовое правило «$N \geq 30$ достаточно»?
 #
 # **Предсказание (до прогона).** По структуре оценки Берри — Эссеена
-# $\sup_x|F_{\zeta_N}(x) - \Phi(x)| \leq C\rho_3/(\sigma^3\sqrt N)$ ожидаем:
-# величина $D_N\sqrt N$ выходит на постоянную, и эта постоянная
+# $\Delta_N = \sup_x|F_{\zeta_N}(x) - \Phi(x)| \leq C\rho_3/(\sigma^3\sqrt N)$ ожидаем:
+# величина $\Delta_N\sqrt N$ выходит на постоянную, и эта постоянная
 # **пропорциональна** $\rho_3/\sigma^3$. Для бернуллиевского закона
 # $\rho_3/\sigma^3 = (p^2+q^2)/\sqrt{pq}$: при $p=0{,}5$ это $1$, при
 # $p=0{,}05$ — около $4{,}2$. Значит при $p=0{,}05$ для той же точности нужно
@@ -450,20 +454,20 @@ def sup_dist_gamma(N):
 
 
 N_LIST = np.array([5, 10, 30, 100, 300, 1000, 3000])
-D = {
+Delta = {
     "Бернулли, p=0.5": np.array([sup_dist_binom(int(n), 0.5) for n in N_LIST]),
     f"Бернулли, p={P_RARE}": np.array([sup_dist_binom(int(n), P_RARE) for n in N_LIST]),
     "показательный": np.array([sup_dist_gamma(int(n)) for n in N_LIST]),
 }
-print("\n   N " + "".join(f"{name:>22s}" for name in D))
+print("\n   N " + "".join(f"{name:>22s}" for name in Delta))
 for j, n in enumerate(N_LIST):
-    print(f"{n:5d} " + "".join(f"{D[name][j]:22.5f}" for name in D))
-print("\nD_N * sqrt(N):")
-print("   N " + "".join(f"{name:>22s}" for name in D))
+    print(f"{n:5d} " + "".join(f"{Delta[name][j]:22.5f}" for name in Delta))
+print("\nDelta_N * sqrt(N):")
+print("   N " + "".join(f"{name:>22s}" for name in Delta))
 for j, n in enumerate(N_LIST):
-    print(f"{n:5d} " + "".join(f"{D[name][j]*np.sqrt(n):22.5f}" for name in D))
+    print(f"{n:5d} " + "".join(f"{Delta[name][j]*np.sqrt(n):22.5f}" for name in Delta))
 
-check_golden("D30_bern005", D[f"Бернулли, p={P_RARE}"][N_LIST == 30][0])
+check_golden("D30_bern005", Delta[f"Бернулли, p={P_RARE}"][N_LIST == 30][0])
 
 # %% [markdown]
 # Та же величина — для генератора нормальных чисел Соболя: сумма двенадцати
@@ -498,7 +502,7 @@ check_golden("sum12_sup", d_sum12)
 
 # %% [markdown]
 # **Предсказание сбылось наполовину, и вторая половина поучительнее первой.**
-# Произведение $D_N\sqrt N$ действительно выходит на постоянную у всех трёх
+# Произведение $\Delta_N\sqrt N$ действительно выходит на постоянную у всех трёх
 # законов — это подтвердилось. Но постоянные **не** пропорциональны
 # $\rho_3/\sigma^3$: измеренные $0{,}3989$, $1{,}1888$ и $0{,}1330$ относятся как
 # $1 : 2{,}98 : 0{,}33$, тогда как отношения $\rho_3/\sigma^3$ равны
@@ -512,7 +516,7 @@ check_golden("sum12_sup", d_sum12)
 # 1. **Решётчатость.** Если слагаемое принимает значения на решётке, функция
 #    распределения $\zeta_N$ разрывна, а $\Phi$ непрерывна, поэтому в точке
 #    скачка сумма двух односторонних уклонений не меньше высоты скачка, и
-#    $D_N \geq (\text{наибольший скачок})/2$. Это неравенство ничего не стоит и
+#    $\Delta_N \geq (\text{наибольший скачок})/2$. Это неравенство ничего не стоит и
 #    ниоткуда не берётся: наибольший скачок считается прямо по биномиальным
 #    вероятностям. Для непрерывных законов вклад равен нулю.
 # 2. **Асимметрия** $\gamma_1 = \E(\xi-a)^3/\sigma^3$ — момент **со знаком**, а
@@ -532,7 +536,7 @@ check_golden("sum12_sup", d_sum12)
 # вклада. Практический вывод от этого только крепнет:
 # правило «$N \geq 30$» ложно, а смотреть надо не на $N$ и даже не на
 # $\rho_3/\sigma^3$, а на асимметрию и на решётчатость слагаемого. При
-# $p=0{,}05$ и $N=30$ уклонение $D_{30}=0{,}216$ — пятая часть всей шкалы
+# $p=0{,}05$ и $N=30$ уклонение $\Delta_{30}=0{,}216$ — пятая часть всей шкалы
 # вероятностей, то есть нормальное приближение непригодно; у симметричного
 # бернуллиевского закона при том же $N$ уклонение втрое меньше. Генератор
 # Соболя из двенадцати равномерных даёт уклонение $0{,}00234$ — для
@@ -570,13 +574,13 @@ cases = {
 print(f"\n{'закон':>22} {'решётка':>10} {'асимметрия':>12} {'сумма':>10} {'измерено':>10} {'разница':>10}")
 for name, (lat, g1) in cases.items():
     sk = abs(g1) / (6 * np.sqrt(2 * np.pi))
-    measured = D[name][-1] * np.sqrt(N_LIST[-1])
+    measured = Delta[name][-1] * np.sqrt(N_LIST[-1])
     print(f"{name:>22} {lat:10.5f} {sk:12.5f} {lat+sk:10.5f} {measured:10.5f} "
           f"{abs(lat+sk-measured):10.5f}")
 
 # %%
 fig, ax = plt.subplots(figsize=(6.4, 3.8), layout="constrained")
-for name, d in D.items():
+for name, d in Delta.items():
     ax.loglog(N_LIST, d, "o-", ms=3, label=name)
 ax.loglog(N_LIST, 0.5 / np.sqrt(N_LIST), "k--", lw=1, label=r"$\propto N^{-1/2}$")
 ax.axvline(30, color="C3", lw=0.8, ls=":")
@@ -621,7 +625,7 @@ print(f"\nнаклон в log-log: при нормировке sqrt(N) {slope_sq
       f"(предсказано {1/ALPHA_PARETO - 0.5:+.4f}), "
       f"при нормировке N^(1/alpha) {slope_alpha:+.4f} (предсказано +0.0000)")
 # Local slope over the last two grid points, [3000; 10000]: convergence to the
-# stable law is slow, so the global fit is biased low and the local one is closer.
+# stable law is slow, so the global fit overshoots and the local one is closer.
 loc = np.log(N_PAR[-1] / N_PAR[-2])
 print(f"локальный наклон на [{N_PAR[-2]}; {N_PAR[-1]}]: "
       f"sqrt(N) {np.log(iqr_sqrt[-1]/iqr_sqrt[-2])/loc:+.4f}, "
