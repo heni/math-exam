@@ -15,17 +15,24 @@ else
 fi
 
 echo "== 2. Картинки, на которые ссылаются, но которых нет =="
+# Цикл while раньше стоял в конвейере, то есть в подоболочке, и присваивание
+# fail=1 из bad() терялось: пункт печатал «[!]» и возвращал ноль. Гейт, который
+# жалуется и пропускает, хуже отсутствующего. Подстановка процесса держит цикл
+# в текущей оболочке.
+missing_img=0
 for md in questions/*/theory.md questions/*/slides.md; do
   [ -e "$md" ] || continue
   d=$(dirname "$md")
-  grep -oE '!\[[^]]*\]\(([^)]+)\)' "$md" 2>/dev/null | sed -E 's/.*\((.*)\)/\1/' | sed 's/{.*//' | while read -r img; do
+  while read -r img; do
     [ -n "$img" ] || continue
     case "$img" in http*) continue;; esac
-    [ -e "$d/$img" ] || [ -e "$img" ] || [ -e "assets/$img" ] && continue
-    echo "  [!] $md -> отсутствует $img"
-  done
+    if [ ! -e "$d/$img" ] && [ ! -e "$img" ] && [ ! -e "assets/$img" ]; then
+      bad "$md -> отсутствует $img"
+      missing_img=1
+    fi
+  done < <(grep -oE '!\[[^]]*\]\(([^)]+)\)' "$md" 2>/dev/null | sed -E 's/.*\((.*)\)/\1/' | sed 's/{.*//')
 done
-note "проверено"
+[ "$missing_img" -eq 0 ] && note "чисто"
 
 echo "== 3. PDF старше своего источника =="
 for src in questions/*/theory.md questions/*/slides.md; do
@@ -37,6 +44,16 @@ for src in questions/*/examples.py; do
   [ -e "$src" ] || continue
   nb="${src%.py}.ipynb"
   if [ -e "$nb" ] && [ "$src" -nt "$nb" ]; then bad "$nb старше $src — нужен make"; fi
+done
+# Картинки строит ноутбук, а вставляют их конспект и слайды: PDF, собранный
+# раньше своей картинки, показывает прошлую версию графика и выглядит свежим.
+for pdf in questions/*/theory.pdf questions/*/slides.pdf; do
+  [ -e "$pdf" ] || continue
+  d=$(dirname "$pdf")
+  for fig in "$d"/figures/*.pdf; do
+    [ -e "$fig" ] || continue
+    if [ "$fig" -nt "$pdf" ]; then bad "$pdf старше картинки $fig — нужен make"; fi
+  done
 done
 note "проверено"
 
@@ -144,19 +161,30 @@ MARKDOWN = (
     (r'\*\*', '** (жирный)'),
     (r'(?<![\w*\\])\*(?![\s*])[^*\n]*[^\s*]\*(?![\w*])', '*курсив*'),
     (r'(?<!\\)`', '` (код)'),
-    (r'\][ ]*\([^)\s]*[/.][^)\s]*\)', '[текст](ссылка)'),
+    # [43] (Зализняк) — ссылка на литературу, а не markdown: цифра перед ] исключена
+    (r'(?<![0-9])(?<!\\ref)(?<!\\eqref)(?<!\\cite)\][ ]*\([^)\s]{1,80}\)', '[текст](ссылка)'),
 )
+MATH_ENV = r'equation|align|aligned|cases|array|gather|multline|split|pmatrix|bmatrix'
 bad = 0
 for path in sorted(glob.glob('questions/*/theory.md') + glob.glob('questions/*/slides.md')):
     depth = 0
     in_display = False
+    math_depth = 0
     for i, line in enumerate(open(path, encoding='utf8'), 1):
-        # многострочный $$-блок: состояние переносится между строками
+        # многострочный $$-блок и математические окружения: состояние
+        # переносится между строками, иначе L_n[f](x) в \begin{equation}
+        # читается как markdown-ссылка
         n_dd = line.count('$$')
         was_display = in_display
         if n_dd % 2:
             in_display = not in_display
-        if was_display or in_display:
+        opened_math = len(re.findall(r'\\begin\{(?:' + MATH_ENV + r')\*?\}', line))
+        opened_math += len(re.findall(r'(?<!\\)\\\[', line))
+        closed_math = len(re.findall(r'\\end\{(?:' + MATH_ENV + r')\*?\}', line))
+        closed_math += len(re.findall(r'(?<!\\)\\\]', line))
+        in_math = math_depth > 0 or opened_math > 0
+        math_depth += opened_math - closed_math
+        if was_display or in_display or in_math:
             probe = ''
         else:
             probe = re.sub(r'\$\$.*?\$\$|\$[^$\n]*\$', '', line)

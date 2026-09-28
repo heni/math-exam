@@ -65,6 +65,9 @@ GOLDEN = {
     # noise, and the orthogonality residual is pure round-off — both are
     # checked by thresholds instead of by a pinned value.
     "gap_monomial_k25": (0.008161495911899068, 0.05),
+    # off-diagonal of the Chebyshev Gram matrix on UNIFORM nodes: quoted in the
+    # notes as the reason the matrix is not near-diagonal away from cheb nodes
+    "gram_off_uniform": (0.31073446327683624, 1e-9),
 }
 
 
@@ -803,6 +806,17 @@ print(f"  свёртка против МНК: расхождение {np.max(np.
 assert off < 1e-14, "дискретная ортогональность должна быть точной до округлений"
 
 # %%
+print("\n5b'. Матрица Грама вне чебышёвских узлов диагональной НЕ становится")
+print("   k   max|G-diag|/n (равномерные узлы)   диагональ G/n (первые четыре)")
+for k in (4, 8, 12, 25, 30):
+    Vu = np.polynomial.chebyshev.chebvander(x_unif, k)
+    Gu = Vu.T @ Vu / N_MEAS
+    off_u = float(np.max(np.abs(Gu - np.diag(np.diag(Gu)))))
+    print(f"  {k:3d}   {off_u:.4f}                            {np.round(np.diag(Gu)[:4], 3)}")
+# the value does not depend on k: T_p are orthogonal with weight (1-x^2)^{-1/2},
+# while a uniform grid approximates the integral with weight 1
+check_golden("gram_off_uniform", off_u)
+
 print("\n5c. Что происходит с коэффициентами при росте k")
 print("   k   a_0..a_4 (Чебышёв)                              a_0..a_4 (мономы)")
 for k in (4, 8, 12):
