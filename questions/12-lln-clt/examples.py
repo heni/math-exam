@@ -157,7 +157,8 @@ grid = np.unique(np.logspace(0, np.log10(N_MAX), 220).astype(int))
 def median_deviation(draw, a, n_runs=N_RUNS_MED):
     """Median |mean_N - a| over an ensemble, evaluated on `grid`.
 
-    The ensemble size is chosen by the spread measured in the cell below, not by guess.
+    The ensemble size is chosen by the spread measured further down in this cell,
+    not by guess.
     """
     acc = []
     for _ in range(n_runs // CHUNK):
