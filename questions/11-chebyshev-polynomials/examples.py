@@ -48,8 +48,12 @@ GOLDEN = {
     # numpy/sympy, but not a mathematical constant — hence the loose tolerance
     "mono_err_T40": (0.02947126863474181, 0.05),
     # measured convergence of the iteration, single-threaded BLAS
-    "iter_cheb_n50": (5.792042179805339e-05, 1e-6),
-    "iter_stat_n50": (0.09551662560577172, 1e-6),
+    # at n = 50 the intermediate norm grows to 8e7, i.e. about eight significant
+    # digits are eaten: the result is resolvable to ~1e-4, not to 1e-6. A tighter
+    # tolerance would fail on a different numpy build, not on different maths.
+    "iter_cheb_n50": (5.792042179805339e-05, 1e-3),
+    # the stationary method is monotone, so its result keeps full precision
+    "iter_stat_n50": (0.09551662560577172, 1e-9),
     # interpolation error quoted on the slides. Only the Chebyshev value is
     # pinned: the uniform one at n = 64 is round-off amplified by a Lebesgue
     # constant of order 1e14 and changes severalfold between runs of the same

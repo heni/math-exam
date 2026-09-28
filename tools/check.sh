@@ -129,25 +129,43 @@ PYCHK
 
 echo "== 9. Markdown-разметка внутри LaTeX-окружений =="
 # Содержимое \begin{theorem}...\end{theorem} pandoc отдаёт в LaTeX КАК ЕСТЬ,
-# поэтому любая markdown-конструкция внутри печатается сырой: `**жирный**`
-# звёздочками, `код` кавычками, [текст](ссылка) целиком. Сборка при этом
-# зелёная — дефект виден только в PDF. Отдельно: «~\ref» в markdown-прозе
-# печатается видимой тильдой (вне окружений обратная косая экранирует знак).
-# Проверяем ИСХОДНИК: так ловится весь класс, а не три известных случая, и нет
-# ложных срабатываний на математику вида L_n[f](x).
+# поэтому любая markdown-конструкция внутри печатается сырой. Уже случались все
+# четыре: **жирный**, *курсив*, `код`, [текст](ссылка). Отдельно: «~\ref» в
+# markdown-прозе печатается видимой тильдой. Проверяем ИСХОДНИК — так ловится
+# класс, а не перечень известных случаев.
+#
+# Что НЕ ловится (осознанно): markdown внутри однострочной математики $...$ и
+# внутри многострочных $$-блоков маскируется целиком, поэтому дефект,
+# спрятанный в формулу, пройдёт. Такой ещё ни разу не случался.
 python3 - <<'PYMD'
 import re, glob, sys
+
+MARKDOWN = (
+    (r'\*\*', '** (жирный)'),
+    (r'(?<![\w*\\])\*(?![\s*])[^*\n]*[^\s*]\*(?![\w*])', '*курсив*'),
+    (r'(?<!\\)`', '` (код)'),
+    (r'\][ ]*\([^)\s]*[/.][^)\s]*\)', '[текст](ссылка)'),
+)
 bad = 0
 for path in sorted(glob.glob('questions/*/theory.md') + glob.glob('questions/*/slides.md')):
     depth = 0
+    in_display = False
     for i, line in enumerate(open(path, encoding='utf8'), 1):
-        inside = depth > 0
-        # математику маскируем: $...$ может содержать * и []
-        probe = re.sub(r'\$\$.*?\$\$|\$[^$\n]*\$', '', line)
+        # многострочный $$-блок: состояние переносится между строками
+        n_dd = line.count('$$')
+        was_display = in_display
+        if n_dd % 2:
+            in_display = not in_display
+        if was_display or in_display:
+            probe = ''
+        else:
+            probe = re.sub(r'\$\$.*?\$\$|\$[^$\n]*\$', '', line)
+        # заголовок окружения разбирается уже как внутренний: \begin{theorem}[...]
+        opens = len(re.findall(r'\\begin\{', line))
+        closes = len(re.findall(r'\\end\{', line))
+        inside = depth > 0 or opens > closes
         if inside:
-            for pat, what in ((r'\*\*', "'**' (жирный)"),
-                              (r'(?<!\\)`', "'`' (код)"),
-                              (r'\][ ]*\([^)\s]*[/.][^)\s]*\)', "[текст](ссылка)")):
+            for pat, what in MARKDOWN:
                 if re.search(pat, probe):
                     print(f'  [!] {path}:{i}: markdown {what} внутри LaTeX-окружения')
                     bad = 1
@@ -155,8 +173,7 @@ for path in sorted(glob.glob('questions/*/theory.md') + glob.glob('questions/*/s
             if re.search(r'~\\(ref|eqref)\{', probe):
                 print(f'  [!] {path}:{i}: ~\\ref вне окружения — печатается видимой тильдой')
                 bad = 1
-        depth += len(re.findall(r'\\begin\{', line))
-        depth -= len(re.findall(r'\\end\{', line))
+        depth += opens - closes
     if depth != 0:
         print(f'  [!] {path}: незакрытые окружения (глубина {depth})')
         bad = 1
