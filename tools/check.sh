@@ -136,19 +136,36 @@ echo "== 9. Разметка, просочившаяся в собранный P
 #     обратная косая перед пунктуацией — экранирование.
 # Проверяем по собранному PDF, а не по исходнику: гейт обязан мерить то, что
 # увидит читатель.
+# Тильду ловим в ИСХОДНИКЕ и только перед \ref/\eqref: в математике знак ~
+# законен (асимптотика, распределение), и запрет на любую тильду в PDF уронил бы
+# гейт на первом же `a \sim b`. Звёздочки ловим в PDF: там ловушка именно в том,
+# что исходник выглядит правильно.
 pdf_markup=0
-for pdf in questions/*/theory.pdf questions/*/slides.pdf; do
-  [ -e "$pdf" ] || continue
-  stars=$(pdftotext "$pdf" - 2>/dev/null | grep -c '\*\*' || true)
-  tildes=$(pdftotext -layout "$pdf" - 2>/dev/null | grep -c '~' || true)
-  [ "${stars:-0}" -gt 0 ] && { bad "$pdf: $stars строк с '**' — markdown внутри LaTeX-окружения"; pdf_markup=1; }
-  [ "${tildes:-0}" -gt 0 ] && { bad "$pdf: $tildes строк с видимой '~' — писать '\\ref' с обычным пробелом"; pdf_markup=1; }
-done
 if command -v pdftotext >/dev/null 2>&1; then
-  [ "$pdf_markup" -eq 0 ] && note "чисто"
+  for pdf in questions/*/theory.pdf questions/*/slides.pdf; do
+    [ -e "$pdf" ] || continue
+    stars=$(pdftotext "$pdf" - 2>/dev/null | grep -c '\*\*' || true)
+    [ "${stars:-0}" -gt 0 ] && { bad "$pdf: $stars строк с '**' — markdown внутри LaTeX-окружения"; pdf_markup=1; }
+  done
 else
-  note "pdftotext не найден — пропуск"
+  note "pdftotext не найден — проверка PDF пропущена"
 fi
+for md in questions/*/theory.md questions/*/slides.md; do
+  [ -e "$md" ] || continue
+  # ~\ref внутри теоремных окружений работает как неразрывный пробел, вне их
+  # pandoc экранирует тильду; ищем вхождения и проверяем глубину окружений
+  python3 - "$md" <<'PYTILDE' || pdf_markup=1
+import re,sys
+path=sys.argv[1]; depth=0; hits=[]
+for i,l in enumerate(open(path,encoding='utf8'),1):
+    if depth==0 and re.search(r'~\\(ref|eqref)\{', l): hits.append(i)
+    depth+=len(re.findall(r'\\begin\{',l)); depth-=len(re.findall(r'\\end\{',l))
+if hits:
+    print(f'  [!] {path}: ~\\ref вне окружений в строках {hits} — печатается видимой тильдой')
+    sys.exit(1)
+PYTILDE
+done
+[ "$pdf_markup" -eq 0 ] && note "чисто" 
 
 echo
 [ "$fail" -eq 0 ] && echo "ИТОГ: чисто" || echo "ИТОГ: есть замечания"

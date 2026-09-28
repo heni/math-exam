@@ -56,10 +56,11 @@ GOLDEN = {
     # code, so only its order of magnitude is asserted below.
     "interp_cheb_n64": (0.009185244288825594, 1e-9),
     "interp_unif_n32": (105720.1714808155, 1e-4),
-    # example 5: taken from an actual run via repr(), never typed by hand
-    "cond_monomial_k25": (4.1969078584488384e17, 0.05),
+    # example 5. Only gap_monomial_k25 is pinned: it measures the observable
+    # effect. cond at k = 25 already exceeds 1/eps, so its value is LAPACK
+    # noise, and the orthogonality residual is pure round-off — both are
+    # checked by thresholds instead of by a pinned value.
     "gap_monomial_k25": (0.008161495911899068, 0.05),
-    "discrete_orth_off": (1.9984014443252818e-16, 0.5),
 }
 
 
@@ -313,7 +314,7 @@ check_golden("interp_unif_n32", float(err_unif[list(ns).index(32)]))
 assert err_unif[-1] > 1e12, "равномерные узлы при n = 64 должны давать > 1e12"
 
 # %%
-print("\n2b. Задача 4 конспекта: отрезок ряда по T_{2k} против оценки хвоста")
+print("\n2b. Задача 4 конспекта (коэффициенты |x|): отрезок ряда по T_{2k} против оценки хвоста")
 print("  K   ||f - P_K||     2/(pi(2K+1))   отношение")
 for K in (1, 2, 4, 8, 16, 32):
     c = np.zeros(2 * K + 1)
@@ -470,7 +471,7 @@ fig.savefig(f"{FIGDIR}/fig-03.pdf")
 # Предсказание о режимах роста сбылось, но с уточнением. У равномерной сетки
 # отношения соседних значений $\Lambda_n$ не постоянны, а растут:
 # $4{,}96 \to 12{,}55$, то есть рост **быстрее** любого геометрического $q^n$ с
-# фиксированным $q$ (оценка снизу $\Lambda_n \ge q^n$ из литературы этому не
+# фиксированным $q$ (оценка снизу $\Lambda_n \ge \gamma^{\,n}$ из литературы этому не
 # противоречит — она нижняя). У чебышёвской сетки измеренные значения лежат
 # примерно на $2\%$ **ниже** ориентира $\tfrac{2}{\pi}\ln(n+1)+1$, а приращения
 # падают ($0{,}373 \to 0{,}111$), как и положено логарифму.
@@ -493,6 +494,11 @@ fig.savefig(f"{FIGDIR}/fig-03.pdf")
 # $(1-\tau_j\lambda)$ по отдельности могут быть велики по модулю, и при
 # «естественном» порядке параметров промежуточная погрешность растёт, съедая
 # разрядность.
+# (4) При **фиксированном бюджете** в 60 шагов и растущей обусловленности
+# ожидаем: чебышёвский набор всюду лучше стационарного, но преимущество
+# сокращается, потому что 60 шагов для больших $\varkappa$ — уже не тот бюджет
+# (по оценке нужно около $\tfrac12\sqrt{\varkappa}\ln(2/\varepsilon)$ шагов).
+# Обе измеренные кривые должны лежать **ниже** своих оценок.
 
 # %%
 DIM = 200                              # matrix size; N is reserved for sample size
@@ -580,22 +586,43 @@ steps = np.arange(n_show + 1)
 TOL_ITER = 1e-6
 
 
-def steps_to_tol(kappa_value, tol=TOL_ITER):
-    """Smallest n with the guaranteed factor below tol, for both parameter sets."""
+def bound_after(kappa_value, n):
+    """What the bounds q_n and q_1^n promise after n steps. Closed form."""
     eta_k = 1.0 / kappa_value
     sig_k = (1 - np.sqrt(eta_k)) / (1 + np.sqrt(eta_k))
     q1_k = (kappa_value - 1) / (kappa_value + 1)
-    n_cheb = int(np.ceil(np.log(tol / 2) / np.log(sig_k)))
-    n_stat = int(np.ceil(np.log(tol) / np.log(q1_k)))
-    return n_cheb, n_stat
+    return 2 * sig_k ** n / (1 + sig_k ** (2 * n)), q1_k ** n
 
 
+def measured_after(kappa_value, n, dim=120):
+    """Error actually achieved after n steps on a matrix with that spectrum."""
+    lo, hi = 1.0, float(kappa_value)
+    spectrum = np.exp(np.linspace(np.log(lo), np.log(hi), dim))
+    q_mat, _ = np.linalg.qr(np.random.default_rng(SEED + 7).standard_normal((dim, dim)))
+    mat = (q_mat * spectrum) @ q_mat.T
+    mat = 0.5 * (mat + mat.T)
+    err0 = np.random.default_rng(SEED + 8).standard_normal(dim)
+
+    def apply(taus):
+        e = err0.copy()
+        for t in taus:
+            e = e - t * (mat @ e)
+        return float(np.linalg.norm(e) / np.linalg.norm(err0))
+
+    j = np.arange(1, n + 1)
+    lam = 0.5 * (lo + hi) + 0.5 * (hi - lo) * np.cos((2 * j - 1) * np.pi / (2 * n))
+    return apply(shuffled(1.0 / lam)), apply(np.full(n, 2.0 / (lo + hi)))
+
+
+BUDGET = 60
 kappas = np.array([10, 30, 100, 300, 1000, 3000, 10000], dtype=float)
-pairs = np.array([steps_to_tol(k) for k in kappas])
-print("\n  число шагов до множителя 1e-6:")
-print("  kappa   чебышёвский  стационарный  отношение  sqrt(kappa)")
-for kv, (nc, nst) in zip(kappas, pairs):
-    print(f"  {kv:7.0f}   {nc:9d}   {nst:10d}   {nst/nc:8.1f}   {np.sqrt(kv):9.1f}")
+meas = np.array([measured_after(k, BUDGET) for k in kappas])
+bnds = np.array([bound_after(k, BUDGET) for k in kappas])
+print(f"\n  что даёт бюджет в {BUDGET} шагов при разной обусловленности:")
+print("  kappa   чебыш.(изм)   оценка q_n    стац.(изм)    оценка q_1^n   выигрыш")
+for kv, (mc, ms), (bc, bs) in zip(kappas, meas, bnds):
+    print(f"  {kv:7.0f}  {mc:.3e}   {bc:.3e}   {ms:.3e}   {bs:.3e}   {ms/mc:10.1f}")
+    assert mc <= bc * (1 + 1e-9) and ms <= bs * (1 + 1e-9), "оценки должны быть верхними"
 
 fig, (axa, axb) = plt.subplots(1, 2, figsize=(9.2, 3.6), layout="constrained")
 
@@ -622,15 +649,15 @@ axa.set_ylabel(r"$\|e^n\|_2/\|e^0\|_2$ после $n$ шагов")
 axa.set_title(rf"сходимость, $\kappa = {kappa:g}$", fontsize=9)
 axa.legend(fontsize=7)
 
-axb.loglog(kappas, pairs[:, 1], "o--", color="tab:blue", label="стационарный")
-axb.loglog(kappas, pairs[:, 0], "s-", color="tab:green", label="чебышёвский набор")
-axb.loglog(kappas, 0.5 * kappas * np.log(1 / TOL_ITER), ":", color="tab:blue",
-           label=r"$\frac{1}{2}\kappa\ln(1/\epsilon)$")
-axb.loglog(kappas, 0.5 * np.sqrt(kappas) * np.log(2 / TOL_ITER), ":", color="tab:green",
-           label=r"$\frac{1}{2}\sqrt{\kappa}\ln(2/\epsilon)$")
+axb.loglog(kappas, meas[:, 1], "o-", color="tab:blue", label="стационарный (измерено)")
+axb.loglog(kappas, bnds[:, 1], "o:", markerfacecolor="none", color="tab:blue",
+           label=r"его оценка $q_1^{\,n}$")
+axb.loglog(kappas, meas[:, 0], "s-", color="tab:green", label="чебышёвский (измерено)")
+axb.loglog(kappas, bnds[:, 0], "s:", markerfacecolor="none", color="tab:green",
+           label=r"его оценка $q_n$")
 axb.set_xlabel(r"$\kappa$")
-axb.set_ylabel("шагов до $10^{-6}$")
-axb.set_title("цена точности как функция обусловленности", fontsize=9)
+axb.set_ylabel(r"$\|e^n\|_2/\|e^0\|_2$ после 60 шагов")
+axb.set_title("бюджет 60 шагов при разной обусловленности", fontsize=9)
 axb.legend(fontsize=7)
 fig.savefig(f"{FIGDIR}/fig-04.pdf")
 
@@ -732,7 +759,10 @@ for k in ks:
     d_c = float(np.max(np.abs(Vc @ coef_c - Vc @ ref)))
     cond_m.append(cm); cond_c.append(cc); gap.append((d, d_c))
     print(f"  {k:3d}  {cm:.2e}      {cc:.2e}        моном {d:.2e}, Чебышёв {d_c:.2e}")
-check_golden("cond_monomial_k25", cond_m[ks.index(25)])
+# cond at k = 25 is past 1/eps, i.e. machine-singular: assert the threshold, not
+# the value (at k = 30 the reported cond even drops — it stops measuring)
+assert cond_m[ks.index(25)] > 1.0 / np.finfo(float).eps
+assert cond_c[ks.index(25)] < 1e4
 check_golden("gap_monomial_k25", gap[ks.index(25)][0])
 
 # %%
@@ -746,7 +776,7 @@ print(f"  диагональ Gram/n: {np.round(np.diag(G) / N_MEAS, 6)}")
 coef_conv = (V.T @ y_cheb) / np.diag(G)          # one convolution, no system
 coef_lsq = np.linalg.lstsq(V, y_cheb, rcond=None)[0]
 print(f"  свёртка против МНК: расхождение {np.max(np.abs(coef_conv - coef_lsq)):.2e}")
-check_golden("discrete_orth_off", off)
+assert off < 1e-14, "дискретная ортогональность должна быть точной до округлений"
 
 # %%
 print("\n5c. Что происходит с коэффициентами при росте k")
