@@ -13,16 +13,20 @@ resource-path:
   - assets
 variables:
   documentclass: scrartcl
+  # Одна колонка, кегль 10, поля 20 мм: конспект читают как справку, и
+  # плотность важнее воздуха. Двухколоночная вёрстка проверена измерением и
+  # отвергнута — выкладки шире колонки (разбор в docs/build.md, раздел
+  # «Вёрстка конспекта»). Широкие таблицы набираются сырым LaTeX, а не
+  # markdown: pandoc превращает markdown-таблицы в longtable.
   classoption:
-    - DIV=12
     - parskip=half
   mainfont: DejaVu Serif
   sansfont: Lato
   monofont: DejaVu Sans Mono
   lang: ru
-  fontsize: 11pt
-  geometry: margin=25mm
-  linestretch: 1.05
+  fontsize: 10pt
+  geometry: margin=20mm
+  linestretch: 1.0
   colorlinks: true
   linkcolor: teal
   urlcolor: teal

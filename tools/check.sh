@@ -15,17 +15,29 @@ else
 fi
 
 echo "== 2. Картинки, на которые ссылаются, но которых нет =="
+# Цикл while раньше стоял в конвейере, то есть в подоболочке, и присваивание
+# fail=1 из bad() терялось: пункт печатал «[!]» и возвращал ноль. Гейт, который
+# жалуется и пропускает, хуже отсутствующего. Подстановка процесса держит цикл
+# в текущей оболочке.
+missing_img=0
 for md in questions/*/theory.md questions/*/slides.md; do
   [ -e "$md" ] || continue
   d=$(dirname "$md")
-  grep -oE '!\[[^]]*\]\(([^)]+)\)' "$md" 2>/dev/null | sed -E 's/.*\((.*)\)/\1/' | sed 's/{.*//' | while read -r img; do
+  # Ищем ЦЕЛЬ ссылки, а не картинку целиком: подписи бывают многострочными и
+  # содержат «]» внутри математики ($[-1,1]$, \eqref{...}), поэтому шаблон
+  # «!\[[^]]*\]\(...\)» обрывался на первой же скобке и не видел ни одной
+  # картинки конспекта. Проверено подстановкой: удалённый figures/*.pdf теперь
+  # ловится, раньше проходил молча.
+  while read -r img; do
     [ -n "$img" ] || continue
     case "$img" in http*) continue;; esac
-    [ -e "$d/$img" ] || [ -e "$img" ] || [ -e "assets/$img" ] && continue
-    echo "  [!] $md -> отсутствует $img"
-  done
+    if [ ! -e "$d/$img" ] && [ ! -e "$img" ] && [ ! -e "assets/$img" ]; then
+      bad "$md -> отсутствует $img"
+      missing_img=1
+    fi
+  done < <(grep -oE '\]\([^)]+\.(pdf|png|jpg|jpeg|svg)\)' "$md" 2>/dev/null | sed -E 's/^\]\((.*)\)$/\1/')
 done
-note "проверено"
+[ "$missing_img" -eq 0 ] && note "чисто"
 
 echo "== 3. PDF старше своего источника =="
 for src in questions/*/theory.md questions/*/slides.md; do
@@ -37,6 +49,18 @@ for src in questions/*/examples.py; do
   [ -e "$src" ] || continue
   nb="${src%.py}.ipynb"
   if [ -e "$nb" ] && [ "$src" -nt "$nb" ]; then bad "$nb старше $src — нужен make"; fi
+done
+# Картинки строит ноутбук, а вставляют их конспект и слайды: PDF, собранный
+# раньше картинки, показывает прошлую версию графика и выглядит свежим.
+# Сравниваем любую картинку вопроса с любым его PDF, не разбирая, кто какую
+# вставляет: лишняя пересборка дешевле пропущенной устаревшей картинки.
+for pdf in questions/*/theory.pdf questions/*/slides.pdf; do
+  [ -e "$pdf" ] || continue
+  d=$(dirname "$pdf")
+  for fig in "$d"/figures/*.pdf; do
+    [ -e "$fig" ] || continue
+    if [ "$fig" -nt "$pdf" ]; then bad "$pdf старше картинки $fig — нужен make"; fi
+  done
 done
 note "проверено"
 
@@ -114,7 +138,12 @@ if only_b: print(f'  [!] записи без файла в наборе: {only_b
 if not only_w and not only_b: print(f'  набор и список согласованы: {len(works)} работ')
 # 3) ссылки [N] во всех версионируемых текстах
 bad={}
-for p in ['docs/sources.md','docs/glossary.md','README.md','docs/style-guide.md']+glob.glob('questions/*/README.md'):
+# Конспект и слайды тоже версионируются и тоже полны ссылок [N] — в вопросе 11
+# их двадцать, больше, чем в его README, и именно конспект читает экзаменатор.
+# Математика вида $[a,b]$, $[-1,1]$, $(2k-1)$ под шаблон не попадает.
+for p in (['docs/sources.md','docs/glossary.md','README.md','docs/style-guide.md']
+          + glob.glob('questions/*/README.md')
+          + glob.glob('questions/*/theory.md') + glob.glob('questions/*/slides.md')):
     if not os.path.exists(p): continue
     for m in re.finditer(r'\[(\d{1,2})\]', open(p,encoding='utf8').read()):
         n=f'{int(m.group(1)):02d}'
@@ -125,6 +154,84 @@ if bad:
 else: print('  все ссылки [N] указывают на существующие работы')
 sys.exit(fail)
 PYCHK
+[ $? -eq 0 ] || fail=1
+
+echo "== 9. Markdown-разметка внутри LaTeX-окружений =="
+# Содержимое \begin{theorem}...\end{theorem} pandoc отдаёт в LaTeX КАК ЕСТЬ,
+# поэтому любая markdown-конструкция внутри печатается сырой. Уже случались все
+# четыре: **жирный**, *курсив*, `код`, [текст](ссылка). Отдельно: «~\ref» в
+# markdown-прозе печатается видимой тильдой. Проверяем ИСХОДНИК — так ловится
+# класс, а не перечень известных случаев.
+#
+# Что НЕ ловится (осознанно): markdown внутри однострочной математики $...$ и
+# внутри многострочных $$-блоков маскируется целиком, поэтому дефект,
+# спрятанный в формулу, пройдёт. Такой ещё ни разу не случался.
+python3 - <<'PYMD'
+import re, glob, sys
+
+MARKDOWN = (
+    (r'\*\*', '** (жирный)'),
+    (r'(?<![\w*\\])\*(?![\s*])[^*\n]*[^\s*]\*(?![\w*])', '*курсив*'),
+    (r'(?<!\\)`', '` (код)'),
+    # [43] (Зализняк) — ссылка на литературу, а не markdown: цифра перед ] исключена
+    (r'(?<![0-9])(?<!\\ref)(?<!\\eqref)(?<!\\cite)\][ ]*\([^)\s]{1,80}\)', '[текст](ссылка)'),
+)
+MATH_ENV = r'equation|align|aligned|cases|array|gather|multline|split|pmatrix|bmatrix'
+bad = 0
+for path in sorted(glob.glob('questions/*/theory.md') + glob.glob('questions/*/slides.md')):
+    depth = 0
+    in_display = False
+    math_depth = 0
+    hits = []
+    last_open = 0
+    for i, line in enumerate(open(path, encoding='utf8'), 1):
+        # многострочный $$-блок и математические окружения: состояние
+        # переносится между строками, иначе L_n[f](x) в \begin{equation}
+        # читается как markdown-ссылка
+        n_dd = line.count('$$')
+        was_display = in_display
+        if n_dd % 2:
+            in_display = not in_display
+        opened_math = len(re.findall(r'\\begin\{(?:' + MATH_ENV + r')\*?\}', line))
+        opened_math += len(re.findall(r'(?<!\\)\\\[', line))
+        closed_math = len(re.findall(r'\\end\{(?:' + MATH_ENV + r')\*?\}', line))
+        closed_math += len(re.findall(r'(?<!\\)\\\]', line))
+        in_math = math_depth > 0 or opened_math > 0
+        math_depth += opened_math - closed_math
+        if was_display or in_display or in_math:
+            probe = ''
+        else:
+            probe = re.sub(r'\$\$.*?\$\$|\$[^$\n]*\$', '', line)
+        # заголовок окружения разбирается уже как внутренний: \begin{theorem}[...]
+        opens = len(re.findall(r'\\begin\{', line))
+        closes = len(re.findall(r'\\end\{', line))
+        inside = depth > 0 or opens > closes
+        if inside:
+            for pat, what in MARKDOWN:
+                if re.search(pat, probe):
+                    hits.append(f'  [!] {path}:{i}: markdown {what} внутри LaTeX-окружения')
+        else:
+            if re.search(r'~\\(ref|eqref)\{', probe):
+                print(f'  [!] {path}:{i}: ~\\ref вне окружения — печатается видимой тильдой')
+                bad = 1
+        if opens > closes:
+            last_open = i
+        depth += opens - closes
+    # Непарный \begin делает «внутри окружения» весь остаток файла, и находки
+    # ниже него — ложные. В этом случае печатаем только причину: иначе поиск
+    # уходит на тридцать несуществующих дефектов вместо одной строки.
+    if depth != 0:
+        print(f'  [!] {path}: незакрытое окружение (глубина {depth} в конце файла); '
+              f'последний непарный \\begin — строка {last_open}')
+        bad = 1
+    elif hits:
+        for h in hits:
+            print(h)
+        bad = 1
+if not bad:
+    print('  чисто')
+sys.exit(bad)
+PYMD
 [ $? -eq 0 ] || fail=1
 
 echo

@@ -18,7 +18,11 @@
 \deftranslation[to=russian]{Remark}{Замечание}
 
 % beamer определяет theorem/lemma/corollary/definition/example/problem/proof сам,
-% но не remark и не notation — добавляем, иначе сборка падает на \begin{remark}.
+% но не remark, notation и proposition — добавляем, иначе сборка падает на
+% \begin{remark} и \begin{proposition}.
+\deftranslation[to=russian]{Proposition}{Предложение}
+\theoremstyle{plain}
+\newtheorem{proposition}{Предложение}
 \theoremstyle{remark}
 \newtheorem{remark}{Замечание}
 \newtheorem{notation}{Обозначения}
@@ -41,3 +45,7 @@
 \DeclareMathOperator{\tr}{tr}
 \DeclareMathOperator{\diag}{diag}
 \DeclareMathOperator{\supp}{supp}
+
+% Многочлены Чебышёва: T_n — тригонометрическая нормировка cos(n arccos x),
+% \Tm_n — приведённая (старший коэффициент 1). Нужны в вопросах 01, 11, 13, 19.
+\newcommand{\Tm}{\widetilde{T}}

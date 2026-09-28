@@ -1,6 +1,10 @@
 % Общая преамбула конспектов теории. Подключается через build/defaults-theory.yaml.
 \usepackage{amsmath,amssymb,amsthm,mathtools}
 
+% Плотная вёрстка одной колонкой (двухколоночная проверена и отвергнута: часть
+% выкладок шире колонки и печатается за полосу — см. docs/build.md).
+\emergencystretch=3em
+
 \theoremstyle{plain}
 \newtheorem{theorem}{Теорема}[section]
 \newtheorem{lemma}[theorem]{Лемма}
@@ -13,7 +17,12 @@
 \newtheorem{problem}[theorem]{Задача}
 
 \theoremstyle{remark}
-\newtheorem*{remark}{Замечание}
+% remark нумеруется в общем счётчике: на замечания ссылаются через \ref, а у
+% \newtheorem* счётчика нет — \label внутри такого окружения захватывает
+% внешний счётчик, и ссылка молча указывает на чужой объект (проверено: было
+% «по замечанию 6.1», совпадающее с номером теоремы 6.1).
+\newtheorem{remark}[theorem]{Замечание}
+% notation не нумеруется намеренно: на блоки обозначений не ссылаются.
 \newtheorem*{notation}{Обозначения}
 
 \renewcommand{\proofname}{Доказательство}
@@ -38,3 +47,7 @@
 \DeclareMathOperator{\tr}{tr}
 \DeclareMathOperator{\diag}{diag}
 \DeclareMathOperator{\supp}{supp}
+
+% Многочлены Чебышёва: T_n — тригонометрическая нормировка cos(n arccos x),
+% \Tm_n — приведённая (старший коэффициент 1). Нужны в вопросах 01, 11, 13, 19.
+\newcommand{\Tm}{\widetilde{T}}
