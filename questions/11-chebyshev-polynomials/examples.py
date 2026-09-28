@@ -669,7 +669,7 @@ axa.semilogy(n_grid, [q_of(int(k)) for k in n_grid], ":", color="tab:green",
              label=r"оценка $q_n$")
 axa.set_xlabel("число шагов $n$")
 axa.set_ylabel(r"$\|e^n\|_2/\|e^0\|_2$ после $n$ шагов")
-axa.set_title(rf"сходимость, $\kappa = {kappa:g}$", fontsize=9)
+axa.set_title(rf"сходимость, $\varkappa = {kappa:g}$", fontsize=9)
 axa.legend(fontsize=7)
 
 axb.loglog(kappas, meas[:, 1], "o-", color="tab:blue", label="стационарный (измерено)")
@@ -678,7 +678,7 @@ axb.loglog(kappas, bnds[:, 1], "o:", markerfacecolor="none", color="tab:blue",
 axb.loglog(kappas, meas[:, 0], "s-", color="tab:green", label="чебышёвский (измерено)")
 axb.loglog(kappas, bnds[:, 0], "s:", markerfacecolor="none", color="tab:green",
            label=r"его оценка $q_n$")
-axb.set_xlabel(r"$\kappa$")
+axb.set_xlabel(r"$\varkappa$")
 axb.set_ylabel(r"$\|e^n\|_2/\|e^0\|_2$ после 60 шагов")
 axb.set_title("бюджет 60 шагов при разной обусловленности", fontsize=9)
 axb.legend(fontsize=7)
