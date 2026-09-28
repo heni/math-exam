@@ -56,9 +56,10 @@ GOLDEN = {
     "iter_stat_n50": (0.09551662560577172, 1e-9),
     # interpolation error quoted on the slides. Only the Chebyshev value is
     # pinned: the uniform one at n = 64 is round-off amplified by a Lebesgue
-    # constant of order 1e14. Measured across four rebuilds of the same code on
-    # the same venv: 4.6e13 ... 5.9e16, a spread of three orders of magnitude —
-    # so only a loose lower bound is asserted below.
+    # constant of order 1e14. Across rebuilds of the same code on the same venv
+    # the value ranged from 4.6e13 to above 1e17 — three orders of magnitude, and
+    # the upper end is not bounded in any useful way. Hence only a loose lower
+    # bound is asserted below, and the slides quote only the order.
     "interp_cheb_n64": (0.009185244288825594, 1e-9),
     "interp_unif_n32": (105720.1714808155, 1e-4),
     # example 5. Only gap_monomial_k25 is pinned: it measures the observable
@@ -137,10 +138,17 @@ def uniform_nodes(n, a=-1.0, b=1.0):
 # сетки, то есть задача ослаблена), но коэффициенты — те самые.
 
 # %%
-print("1a. Рекуррентность против sympy.chebyshevt")
-for n in range(6):
-    from_rec = sp.expand(sp.chebyshevt(n, x_sym))
-    print(f"  T_{n} = {from_rec}")
+print("1a. Символьное разворачивание рекуррентности против sympy.chebyshevt")
+# Разворачиваем ИМЕННО T_{n+1} = 2x T_n - T_{n-1}, а не берём готовое из sympy:
+# конспект ссылается на этот пересчёт как на проверку рекуррентности.
+by_rec = [sp.Integer(1), x_sym]
+for n in range(2, 6):
+    by_rec.append(sp.expand(2 * x_sym * by_rec[-1] - by_rec[-2]))
+for n, poly in enumerate(by_rec):
+    from_sympy = sp.expand(sp.chebyshevt(n, x_sym))
+    assert sp.simplify(poly - from_sympy) == 0, n
+    print(f"  T_{n} = {poly}")
+print("  все шесть совпали с sympy.chebyshevt символьно")
 xs_check = np.linspace(-1, 1, 11)
 for n in range(9):
     ours = cheb_T(n, xs_check)

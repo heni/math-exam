@@ -182,6 +182,8 @@ for path in sorted(glob.glob('questions/*/theory.md') + glob.glob('questions/*/s
     depth = 0
     in_display = False
     math_depth = 0
+    hits = []
+    last_open = 0
     for i, line in enumerate(open(path, encoding='utf8'), 1):
         # многострочный $$-блок и математические окружения: состояние
         # переносится между строками, иначе L_n[f](x) в \begin{equation}
@@ -207,15 +209,24 @@ for path in sorted(glob.glob('questions/*/theory.md') + glob.glob('questions/*/s
         if inside:
             for pat, what in MARKDOWN:
                 if re.search(pat, probe):
-                    print(f'  [!] {path}:{i}: markdown {what} внутри LaTeX-окружения')
-                    bad = 1
+                    hits.append(f'  [!] {path}:{i}: markdown {what} внутри LaTeX-окружения')
         else:
             if re.search(r'~\\(ref|eqref)\{', probe):
                 print(f'  [!] {path}:{i}: ~\\ref вне окружения — печатается видимой тильдой')
                 bad = 1
+        if opens > closes:
+            last_open = i
         depth += opens - closes
+    # Непарный \begin делает «внутри окружения» весь остаток файла, и находки
+    # ниже него — ложные. В этом случае печатаем только причину: иначе поиск
+    # уходит на тридцать несуществующих дефектов вместо одной строки.
     if depth != 0:
-        print(f'  [!] {path}: незакрытые окружения (глубина {depth})')
+        print(f'  [!] {path}: незакрытое окружение (глубина {depth} в конце файла); '
+              f'последний непарный \\begin — строка {last_open}')
+        bad = 1
+    elif hits:
+        for h in hits:
+            print(h)
         bad = 1
 if not bad:
     print('  чисто')
