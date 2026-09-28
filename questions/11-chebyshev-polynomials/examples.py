@@ -32,6 +32,10 @@ rng_iter = np.random.default_rng(SEED + 4)  # example 4: own stream, see note be
 
 FIGDIR = "figures"
 
+# PDF metadata carries a creation timestamp, so an unchanged figure gets new
+# bytes on every rebuild and `git diff` stops telling content from clock.
+SAVE_KW = {"metadata": {"CreationDate": None}}
+
 # Golden pins: seed AND expected output are frozen constants. Each tolerance is
 # set per pin — a blanket 1e-3 would pass a value wrong in its 4th digit.
 # Deterministic quantities get 1e-12; only round-off magnitudes get a loose one.
@@ -287,7 +291,7 @@ ax3.axhline(1, color="grey", linewidth=0.6)
 ax3.set_title(r"рост вне отрезка, $x \geq 1$", fontsize=9)
 ax3.set_xlabel("$x$")
 ax3.legend(fontsize=6)
-fig.savefig(f"{FIGDIR}/fig-01.pdf")
+fig.savefig(f"{FIGDIR}/fig-01.pdf", **SAVE_KW)
 
 print("  T_5 в точках экстремума:", np.round(cheb_T(5, ext5), 12))
 print("  |T_n(1.1)| при n = 5, 10, 20:",
@@ -369,7 +373,7 @@ ax2.set_title("равномерная погрешность")
 ax2.set_xlabel("$n$")
 ax2.set_ylabel(r"$\|f-L_n f\|_C$")
 ax2.legend(fontsize=7)
-fig.savefig(f"{FIGDIR}/fig-02.pdf")
+fig.savefig(f"{FIGDIR}/fig-02.pdf", **SAVE_KW)
 
 # %% [markdown]
 # **Вывод.** Предсказание сбылось полностью: по равномерным узлам погрешность
@@ -475,7 +479,7 @@ ax2.semilogy(ns_leb, 2 / np.pi * np.log(ns_leb + 1) + 1, ":", color="black",
 ax2.set_title(r"константа Лебега $\Lambda_n$")
 ax2.set_xlabel("$n$")
 ax2.legend(fontsize=7)
-fig.savefig(f"{FIGDIR}/fig-03.pdf")
+fig.savefig(f"{FIGDIR}/fig-03.pdf", **SAVE_KW)
 
 # %% [markdown]
 # **Вывод.** Нули $T_{n+1}$ дают $\|\omega_{n+1}\|$ с точностью до $10^{-9}$
@@ -690,7 +694,7 @@ axb.set_xlabel(r"$\varkappa$")
 axb.set_ylabel(r"$\|e^n\|_2/\|e^0\|_2$ после 60 шагов")
 axb.set_title("бюджет 60 шагов при разной обусловленности", fontsize=9)
 axb.legend(fontsize=7)
-fig.savefig(f"{FIGDIR}/fig-04.pdf")
+fig.savefig(f"{FIGDIR}/fig-04.pdf", **SAVE_KW)
 
 # %%
 # Separate figure: the same polynomial, two orders of the same parameters.
@@ -705,7 +709,7 @@ ax.set_xlabel("номер шага $n$")
 ax.set_ylabel(r"$\|e^n\|_2/\|e^0\|_2$")
 ax.set_title(r"один и тот же многочлен $P_n$, два порядка сомножителей", fontsize=9)
 ax.legend(fontsize=7)
-fig.savefig(f"{FIGDIR}/fig-05.pdf")
+fig.savefig(f"{FIGDIR}/fig-05.pdf", **SAVE_KW)
 
 # %% [markdown]
 # **Вывод.** Предсказание (1) сбылось: обе оценки оказались верхними на всех
@@ -895,7 +899,7 @@ ax2.set_xlabel("$k$")
 ax2.set_ylabel("расхождение с эталоном")
 ax2.set_title("тот же многочлен, посчитанный двумя путями", fontsize=9)
 ax2.legend(fontsize=7)
-fig.savefig(f"{FIGDIR}/fig-06.pdf")
+fig.savefig(f"{FIGDIR}/fig-06.pdf", **SAVE_KW)
 
 # %% [markdown]
 # **Вывод.** Предсказание сбылось по всем трём пунктам, и количественно резче,

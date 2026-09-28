@@ -17,6 +17,10 @@ rng = np.random.default_rng(SEED)
 
 FIGDIR = "figures"
 
+# PDF metadata carries a creation timestamp, so an unchanged figure gets new
+# bytes on every rebuild and `git diff` stops telling content from clock.
+SAVE_KW = {"metadata": {"CreationDate": None}}
+
 # Golden-пины: сид И ожидаемый выход зафиксированы константами. Без них
 # «воспроизводимость» проверяется согласованностью прогона с самим собой, что
 # ничего не значит. Расхождение роняет сборку ноутбука, то есть работает как гейт.
@@ -53,4 +57,4 @@ fig, ax = plt.subplots(figsize=(6, 3.6), layout="constrained")
 # mathtext, не LaTeX: \geq вместо \ge (docs/build.md, «Разметка формул»)
 ax.set_xlabel("...")
 ax.set_ylabel("...")
-fig.savefig(f"{FIGDIR}/fig-01.pdf")
+fig.savefig(f"{FIGDIR}/fig-01.pdf", **SAVE_KW)
