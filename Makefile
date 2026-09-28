@@ -45,14 +45,22 @@ theory:    $(THEORY_PDF)
 slides:    $(SLIDES_PDF)
 notebooks: $(NB_OUT)
 
+# Картинки вставляет PDF, а строит их ноутбук, поэтому ноутбук — настоящая
+# предпосылка, а не «идёт раньше в списке целей»: пересобрался ноутбук — могли
+# измениться картинки, значит PDF надо пересобрать тоже. Order-only здесь не
+# годится (проверено: PDF оставался старше свежих картинок), а голый порядок
+# целей ломается при `make -j4`.
+NB_DEP = $(if $(wildcard questions/$*/examples.py),questions/$*/examples.ipynb)
+
 # resource-path дополняется каталогом вопроса: в slides.md/theory.md картинки
 # пишутся как figures/..., а pandoc работает из корня.
-questions/%/theory.pdf: questions/%/theory.md $(THEORY_YAML) build/preamble-theory.tex
+.SECONDEXPANSION:
+questions/%/theory.pdf: questions/%/theory.md $(THEORY_YAML) build/preamble-theory.tex $$(NB_DEP)
 	@echo "==> theory: $*"
 	@$(PANDOC) $< --defaults $(THEORY_YAML) \
 		--resource-path=.:assets:questions/$* -o $@
 
-questions/%/slides.pdf: questions/%/slides.md $(SLIDES_YAML) build/preamble-slides.tex
+questions/%/slides.pdf: questions/%/slides.md $(SLIDES_YAML) build/preamble-slides.tex $$(NB_DEP)
 	@echo "==> slides: $*"
 	@$(PANDOC) $< --defaults $(SLIDES_YAML) \
 		--resource-path=.:assets:questions/$* -o $@

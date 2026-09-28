@@ -23,6 +23,11 @@ missing_img=0
 for md in questions/*/theory.md questions/*/slides.md; do
   [ -e "$md" ] || continue
   d=$(dirname "$md")
+  # Ищем ЦЕЛЬ ссылки, а не картинку целиком: подписи бывают многострочными и
+  # содержат «]» внутри математики ($[-1,1]$, \eqref{...}), поэтому шаблон
+  # «!\[[^]]*\]\(...\)» обрывался на первой же скобке и не видел ни одной
+  # картинки конспекта. Проверено подстановкой: удалённый figures/*.pdf теперь
+  # ловится, раньше проходил молча.
   while read -r img; do
     [ -n "$img" ] || continue
     case "$img" in http*) continue;; esac
@@ -30,7 +35,7 @@ for md in questions/*/theory.md questions/*/slides.md; do
       bad "$md -> отсутствует $img"
       missing_img=1
     fi
-  done < <(grep -oE '!\[[^]]*\]\(([^)]+)\)' "$md" 2>/dev/null | sed -E 's/.*\((.*)\)/\1/' | sed 's/{.*//')
+  done < <(grep -oE '\]\([^)]+\.(pdf|png|jpg|jpeg|svg)\)' "$md" 2>/dev/null | sed -E 's/^\]\((.*)\)$/\1/')
 done
 [ "$missing_img" -eq 0 ] && note "чисто"
 
