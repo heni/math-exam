@@ -138,7 +138,12 @@ if only_b: print(f'  [!] записи без файла в наборе: {only_b
 if not only_w and not only_b: print(f'  набор и список согласованы: {len(works)} работ')
 # 3) ссылки [N] во всех версионируемых текстах
 bad={}
-for p in ['docs/sources.md','docs/glossary.md','README.md','docs/style-guide.md']+glob.glob('questions/*/README.md'):
+# Конспект и слайды тоже версионируются и тоже полны ссылок [N] — в вопросе 11
+# их двадцать, больше, чем в его README, и именно конспект читает экзаменатор.
+# Математика вида $[a,b]$, $[-1,1]$, $(2k-1)$ под шаблон не попадает.
+for p in (['docs/sources.md','docs/glossary.md','README.md','docs/style-guide.md']
+          + glob.glob('questions/*/README.md')
+          + glob.glob('questions/*/theory.md') + glob.glob('questions/*/slides.md')):
     if not os.path.exists(p): continue
     for m in re.finditer(r'\[(\d{1,2})\]', open(p,encoding='utf8').read()):
         n=f'{int(m.group(1)):02d}'

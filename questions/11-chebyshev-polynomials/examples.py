@@ -56,8 +56,9 @@ GOLDEN = {
     "iter_stat_n50": (0.09551662560577172, 1e-9),
     # interpolation error quoted on the slides. Only the Chebyshev value is
     # pinned: the uniform one at n = 64 is round-off amplified by a Lebesgue
-    # constant of order 1e14 and changes severalfold between runs of the same
-    # code, so only its order of magnitude is asserted below.
+    # constant of order 1e14. Measured across four rebuilds of the same code on
+    # the same venv: 4.6e13 ... 5.9e16, a spread of three orders of magnitude —
+    # so only a loose lower bound is asserted below.
     "interp_cheb_n64": (0.009185244288825594, 1e-9),
     "interp_unif_n32": (105720.1714808155, 1e-4),
     # example 5. Only gap_monomial_k25 is pinned: it measures the observable
@@ -319,9 +320,11 @@ assert err_unif[-1] > err_unif[0] * 1e6, "равномерные узлы дол
 assert err_cheb[-1] < err_cheb[0] / 5, "чебышёвские узлы должны сходиться"
 check_golden("interp_cheb_n64", float(err_cheb[-1]))
 check_golden("interp_unif_n32", float(err_unif[list(ns).index(32)]))
-# n = 64 on uniform nodes is not a measurement any more: the computed value
-# varies severalfold between runs, so only the order is asserted
-assert err_unif[-1] > 1e12, "равномерные узлы при n = 64 должны давать > 1e12"
+# n = 64 on uniform nodes is not a measurement any more: across rebuilds the
+# value ranged 4.6e13 ... 5.9e16. The threshold is set well below that range —
+# the gate must measure divergence, not a narrow window (divergence is already
+# visible at n = 40, where the error is 1.5e7)
+assert err_unif[-1] > 1e10, "равномерные узлы при n = 64 должны расходиться"
 
 # %%
 print("\n2b. Задача 9.4 конспекта (коэффициенты |x|): отрезок ряда по T_{2k} против оценки хвоста")
@@ -815,12 +818,17 @@ assert off < 1e-14, "дискретная ортогональность дол�
 
 # %%
 print("\n5b'. Матрица Грама вне чебышёвских узлов диагональной НЕ становится")
-print("   k   max|G-diag|/n (равномерные узлы)   диагональ G/n (первые четыре)")
+print("   k   наибольший по модулю внедиаг./n     диагональ G/n (первые четыре)")
 for k in (4, 8, 12, 25, 30):
     Vu = np.polynomial.chebyshev.chebvander(x_unif, k)
     Gu = Vu.T @ Vu / N_MEAS
-    off_u = float(np.max(np.abs(Gu - np.diag(np.diag(Gu)))))
-    print(f"  {k:3d}   {off_u:.4f}                            {np.round(np.diag(Gu)[:4], 3)}")
+    off_mat = Gu - np.diag(np.diag(Gu))
+    pos = np.unravel_index(int(np.argmax(np.abs(off_mat))), off_mat.shape)
+    off_u = float(np.max(np.abs(off_mat)))
+    # print the SIGNED element and its address: the notes argue from the sign
+    # (it must agree with the sign of the integral of T_0 T_2)
+    print(f"  {k:3d}   {off_mat[pos]:+.4f} в позиции {pos}      "
+          f"{np.round(np.diag(Gu)[:4], 3)}")
 # the value does not depend on k: T_p are orthogonal with weight (1-x^2)^{-1/2},
 # while a uniform grid approximates the integral with weight 1
 check_golden("gram_off_uniform", off_u)
