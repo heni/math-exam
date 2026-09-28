@@ -36,7 +36,10 @@ NB_OUT     := $(NB_SRC:.py=.ipynb)
 
 .PHONY: all theory slides notebooks check clean new list help venv freeze
 
-all: theory slides notebooks
+# Ноутбуки первыми: они строят картинки, которые вставляют конспект и слайды.
+# При обратном порядке PDF собирается раньше своей картинки и показывает
+# прошлую версию графика, выглядя при этом свежим (ловится tools/check.sh, п. 3).
+all: notebooks theory slides
 
 theory:    $(THEORY_PDF)
 slides:    $(SLIDES_PDF)
@@ -66,10 +69,10 @@ q%:
 	@dir=$$(ls -d questions/$**/ 2>/dev/null | head -1); \
 	if [ -z "$$dir" ]; then echo "нет каталога для вопроса $*"; exit 1; fi; \
 	dir=$${dir%/}; \
+	[ -f "$$dir/examples.py" ] && $(MAKE) --no-print-directory "$$dir/examples.ipynb"; \
 	for t in theory slides; do \
 	  [ -f "$$dir/$$t.md" ] && $(MAKE) --no-print-directory "$$dir/$$t.pdf"; \
 	done; \
-	[ -f "$$dir/examples.py" ] && $(MAKE) --no-print-directory "$$dir/examples.ipynb"; \
 	true
 
 venv:
