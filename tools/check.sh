@@ -234,6 +234,48 @@ sys.exit(bad)
 PYMD
 [ $? -eq 0 ] || fail=1
 
+echo "== 10. Одиночная обратная косая в конце строки внутри LaTeX-окружения =="
+# Внутри \begin{env}...\end{env} pandoc разбирает сырой LaTeX сам, и «\» перед
+# переводом строки сбивает ему токенизацию: окружение выводится ДВАЖДЫ — один раз
+# верно, второй раз искажённым огрызком, после чего xelatex падает на «Missing $».
+# Сообщение указывает на строку в сгенерированном .tex, а не в исходнике, поэтому
+# без гейта причина ищется вслепую.
+#
+# Две границы области действия, обе проверены подстановкой:
+#  - «\\» (перевод строки LaTeX) безвреден — ловим только НЕЧЁТНОЕ число косых;
+#  - вне окружений, в прозе и в $$-блоках, «\» в конце строки тоже безвреден:
+#    там pandoc читает математику своим разбором. Поэтому отслеживаем глубину
+#    окружений, как в пункте 9, и флагаем только внутри.
+python3 - <<'PYBS'
+import re, glob, sys
+bad = 0
+for path in sorted(glob.glob('questions/*/theory.md') + glob.glob('questions/*/slides.md')
+                   + glob.glob('docs/*.md')):
+    depth = 0
+    for i, line in enumerate(open(path, encoding='utf8'), 1):
+        line = line.rstrip('\n')
+        opens = len(re.findall(r'\\begin\{', line))
+        closes = len(re.findall(r'\\end\{', line))
+        inside = depth > 0 or opens > closes
+        if inside and re.search(r'(^|[^\\])(\\\\)*\\$', line):
+            print(f'  [!] {path}:{i}: одиночная «\\» в конце строки внутри окружения')
+            bad = 1
+        depth += opens - closes
+sys.exit(bad)
+PYBS
+[ $? -eq 0 ] && note "чисто" || fail=1
+
+echo "== 11. Кириллица внутри \\mathrm и родственных =="
+# В конспекте (scrartcl) такой индекс печатается, в beamer — нет: metropolis берёт
+# математический шрифт из Latin Modern, где кириллицы нет, и буквы ПРОПАДАЮТ, а
+# сборка проходит. Ловится только предупреждением «Missing character» в логе,
+# которого никто не читает. Правильная запись — \text{...}: он берёт текстовый шрифт.
+if grep -rn --include='*.md' -P '\\(mathrm|mathbf|mathit|mathsf|mathtt)\{[^}]*[А-Яа-яЁё]' questions/ 2>/dev/null; then
+  bad "кириллица внутри \\mathrm — в beamer буквы не печатаются; писать \\text{...}"
+else
+  note "чисто"
+fi
+
 echo
 [ "$fail" -eq 0 ] && echo "ИТОГ: чисто" || echo "ИТОГ: есть замечания"
 exit "$fail"
