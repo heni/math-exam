@@ -38,7 +38,8 @@ SEED = 20260928
 # couple the examples: changing the ensemble size in example 1 would shift every
 # sampled number downstream, and every golden pin with it. Example 1 uses two of
 # them (rng_lln for the median curves and the Cauchy trajectories, rng_cauchy for
-# the interquartile block), example 3 uses none — it is exact throughout.
+# the interquartile block); example 3 uses none — its distribution functions are
+# exact and only the supremum for the continuous law is taken over a grid.
 rng_lln, rng_cauchy, rng_dice, rng_pareto = (
     np.random.default_rng([SEED, k]) for k in range(4)
 )
@@ -62,10 +63,10 @@ GOLDEN = {
     "coin_N_clt": (9604.0, 1e-12),
     "ratio_cheb_clt": (5.206355432540114, 1e-12),
     "dice_halfwidth": (105.850153016853, 1e-12),
-    "dice_cover": (0.9468, 0.01),
     "D30_bern005": (0.21588062338436353, 1e-12),
     "sum12_sup": (0.002335925170854153, 1e-9),
     # sampled: tolerance reflects the spread of the estimator at this ensemble size
+    "dice_cover": (0.9468, 0.01),
     "cauchy_iqr_N1000": (2.0, 0.05),
     "lln_slope_normal": (-0.5, 0.06),
     "pareto_iqr_alpha_last": (3.77285951027, 0.03),
@@ -156,8 +157,7 @@ grid = np.unique(np.logspace(0, np.log10(N_MAX), 220).astype(int))
 def median_deviation(draw, a, n_runs=N_RUNS_MED):
     """Median |mean_N - a| over an ensemble, evaluated on `grid`.
 
-    Eight runs were not enough: the median of eight draws carries a factor-three
-    spread, which is the size of the effect being measured.
+    The ensemble size is chosen by the spread measured just above, not by guess.
     """
     acc = []
     for _ in range(n_runs // CHUNK):
@@ -620,8 +620,8 @@ for j, n in enumerate(N_PAR):
 print(f"\nнаклон в log-log: при нормировке sqrt(N) {slope_sqrt:+.4f} "
       f"(предсказано {1/ALPHA_PARETO - 0.5:+.4f}), "
       f"при нормировке N^(1/alpha) {slope_alpha:+.4f} (предсказано +0.0000)")
-# Local slope over the last decade: convergence to the stable law is slow, so the
-# global fit is biased low and the local one is closer to the limit.
+# Local slope over the last two grid points, [3000; 10000]: convergence to the
+# stable law is slow, so the global fit is biased low and the local one is closer.
 loc = np.log(N_PAR[-1] / N_PAR[-2])
 print(f"локальный наклон на [{N_PAR[-2]}; {N_PAR[-1]}]: "
       f"sqrt(N) {np.log(iqr_sqrt[-1]/iqr_sqrt[-2])/loc:+.4f}, "
@@ -648,7 +648,7 @@ check_golden("pareto_iqr_alpha_last", iqr_alpha[-1])
 # медленной сходимости к устойчивому закону при $\alpha=1{,}5$: поправка к
 # предельному распределению убывает степенью с малым показателем, и на
 # $N \leq 10^4$ асимптотика ещё не установилась. Свидетельство в пользу
-# предсказания — локальный наклон на последней декаде: $+0{,}192$ против
+# предсказания — локальный наклон на отрезке $[3000;10\,000]$: $+0{,}192$ против
 # глобального $+0{,}222$ при предсказанном $+0{,}167$, то есть при росте $N$
 # измеренный наклон идёт к предсказанному, а не от него.
 #
