@@ -598,7 +598,6 @@ h_sh = run(shuffled(cheb_taus(n_show)))
 h_st = run(np.full(n_show, 2.0 / (mu_min + mu_max)))
 steps = np.arange(n_show + 1)
 
-TOL_ITER = 1e-6
 
 
 def bound_after(kappa_value, n):
