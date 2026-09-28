@@ -127,45 +127,44 @@ sys.exit(fail)
 PYCHK
 [ $? -eq 0 ] || fail=1
 
-echo "== 9. Разметка, просочившаяся в собранный PDF =="
-# Две тихие ловушки pandoc, обе уже случались на вопросе 11 и обе не видны в
-# логе сборки (docs/build.md, раздел «Разметка формул»):
-#   - markdown-эмфаза внутри \begin{theorem}...\end{theorem} печатается
-#     звёздочками: содержимое сырых LaTeX-окружений pandoc не разбирает;
-#   - «~\ref{...}» в markdown-прозе печатается видимой тильдой, потому что там
-#     обратная косая перед пунктуацией — экранирование.
-# Проверяем по собранному PDF, а не по исходнику: гейт обязан мерить то, что
-# увидит читатель.
-# Тильду ловим в ИСХОДНИКЕ и только перед \ref/\eqref: в математике знак ~
-# законен (асимптотика, распределение), и запрет на любую тильду в PDF уронил бы
-# гейт на первом же `a \sim b`. Звёздочки ловим в PDF: там ловушка именно в том,
-# что исходник выглядит правильно.
-pdf_markup=0
-if command -v pdftotext >/dev/null 2>&1; then
-  for pdf in questions/*/theory.pdf questions/*/slides.pdf; do
-    [ -e "$pdf" ] || continue
-    stars=$(pdftotext "$pdf" - 2>/dev/null | grep -c '\*\*' || true)
-    [ "${stars:-0}" -gt 0 ] && { bad "$pdf: $stars строк с '**' — markdown внутри LaTeX-окружения"; pdf_markup=1; }
-  done
-else
-  note "pdftotext не найден — проверка PDF пропущена"
-fi
-for md in questions/*/theory.md questions/*/slides.md; do
-  [ -e "$md" ] || continue
-  # ~\ref внутри теоремных окружений работает как неразрывный пробел, вне их
-  # pandoc экранирует тильду; ищем вхождения и проверяем глубину окружений
-  python3 - "$md" <<'PYTILDE' || pdf_markup=1
-import re,sys
-path=sys.argv[1]; depth=0; hits=[]
-for i,l in enumerate(open(path,encoding='utf8'),1):
-    if depth==0 and re.search(r'~\\(ref|eqref)\{', l): hits.append(i)
-    depth+=len(re.findall(r'\\begin\{',l)); depth-=len(re.findall(r'\\end\{',l))
-if hits:
-    print(f'  [!] {path}: ~\\ref вне окружений в строках {hits} — печатается видимой тильдой')
-    sys.exit(1)
-PYTILDE
-done
-[ "$pdf_markup" -eq 0 ] && note "чисто" 
+echo "== 9. Markdown-разметка внутри LaTeX-окружений =="
+# Содержимое \begin{theorem}...\end{theorem} pandoc отдаёт в LaTeX КАК ЕСТЬ,
+# поэтому любая markdown-конструкция внутри печатается сырой: `**жирный**`
+# звёздочками, `код` кавычками, [текст](ссылка) целиком. Сборка при этом
+# зелёная — дефект виден только в PDF. Отдельно: «~\ref» в markdown-прозе
+# печатается видимой тильдой (вне окружений обратная косая экранирует знак).
+# Проверяем ИСХОДНИК: так ловится весь класс, а не три известных случая, и нет
+# ложных срабатываний на математику вида L_n[f](x).
+python3 - <<'PYMD'
+import re, glob, sys
+bad = 0
+for path in sorted(glob.glob('questions/*/theory.md') + glob.glob('questions/*/slides.md')):
+    depth = 0
+    for i, line in enumerate(open(path, encoding='utf8'), 1):
+        inside = depth > 0
+        # математику маскируем: $...$ может содержать * и []
+        probe = re.sub(r'\$\$.*?\$\$|\$[^$\n]*\$', '', line)
+        if inside:
+            for pat, what in ((r'\*\*', "'**' (жирный)"),
+                              (r'(?<!\\)`', "'`' (код)"),
+                              (r'\][ ]*\([^)\s]*[/.][^)\s]*\)', "[текст](ссылка)")):
+                if re.search(pat, probe):
+                    print(f'  [!] {path}:{i}: markdown {what} внутри LaTeX-окружения')
+                    bad = 1
+        else:
+            if re.search(r'~\\(ref|eqref)\{', probe):
+                print(f'  [!] {path}:{i}: ~\\ref вне окружения — печатается видимой тильдой')
+                bad = 1
+        depth += len(re.findall(r'\\begin\{', line))
+        depth -= len(re.findall(r'\\end\{', line))
+    if depth != 0:
+        print(f'  [!] {path}: незакрытые окружения (глубина {depth})')
+        bad = 1
+if not bad:
+    print('  чисто')
+sys.exit(bad)
+PYMD
+[ $? -eq 0 ] || fail=1
 
 echo
 [ "$fail" -eq 0 ] && echo "ИТОГ: чисто" || echo "ИТОГ: есть замечания"
