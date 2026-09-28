@@ -34,9 +34,11 @@ from scipy import stats, integrate
 
 SEED = 20260928
 
-# One generator per example, all derived from a single seed. A shared stream
-# would couple the examples: changing the ensemble size in example 1 shifts every
-# sampled number downstream, and every golden pin with it.
+# Separate generators, all derived from a single seed. A shared stream would
+# couple the examples: changing the ensemble size in example 1 would shift every
+# sampled number downstream, and every golden pin with it. Example 1 uses two of
+# them (rng_lln for the median curves and the Cauchy trajectories, rng_cauchy for
+# the interquartile block), example 3 uses none — it is exact throughout.
 rng_lln, rng_cauchy, rng_dice, rng_pareto = (
     np.random.default_rng([SEED, k]) for k in range(4)
 )
@@ -60,7 +62,7 @@ GOLDEN = {
     "coin_N_clt": (9604.0, 1e-12),
     "ratio_cheb_clt": (5.206355432540114, 1e-12),
     "dice_halfwidth": (105.850153016853, 1e-12),
-    "dice_len_ratio": (23.61829367976408, 1e-12),
+    "dice_cover": (0.9468, 0.01),
     "D30_bern005": (0.21588062338436353, 1e-12),
     "sum12_sup": (0.002335925170854153, 1e-9),
     # sampled: tolerance reflects the spread of the estimator at this ensemble size
@@ -139,8 +141,9 @@ for name, (_, a) in LAWS.items():
 # одно наблюдение, поэтому разброс траекторий по ансамблю прогонов
 # **не сужается**, а наклон будет около нуля.
 #
-# Медиана считается по $200$ прогонам, а не по восьми: медиана восьми значений
-# сама имеет разброс в три раза, то есть порядка измеряемого эффекта.
+# Медиана считается по $200$ прогонам, а не по восьми: у медианы малой выборки
+# собственный разброс сравним с измеряемым эффектом. Насколько именно — считаем
+# ниже, а не заявляем.
 
 # %%
 N_MAX = 100_000
@@ -163,6 +166,15 @@ def median_deviation(draw, a, n_runs=N_RUNS_MED):
         acc.append(np.abs(means[:, grid - 1] - a))
     return np.median(np.concatenate(acc, axis=0), axis=0)
 
+
+# How noisy is a median of n draws? Answer by simulation, not by assertion: the
+# ensemble size was the thing being chosen here.
+probe = np.abs(rng_lln.standard_normal((4000, 200)))
+for n in (8, N_RUNS_MED):
+    med = np.median(probe[:, :n], axis=1)
+    lo, hi = np.percentile(med, [5, 95])
+    print(f"  медиана |N(0,1)| по {n:3d} прогонам: 90%-интервал [{lo:.3f}; {hi:.3f}], "
+          f"относительная ширина {(hi-lo)/np.median(med):.2f}")
 
 dev = {}
 tail = grid >= 1000         # fit the slope over the last two decades only
@@ -198,17 +210,18 @@ check_golden("cauchy_iqr_N1000", cauchy_iqr)
 
 # %% [markdown]
 # **Вывод.** Предсказание сбылось, и теперь это утверждение о числах, а не о
-# виде кривой: измеренные наклоны на двух последних декадах равны $-0{,}515$
-# (нормальный), $-0{,}510$ (равномерный), $-0{,}547$ (бернуллиевский),
-# $-0{,}303$ (Парето, предсказано $-1/3$) и $+0{,}015$ (Коши, предсказано $0$).
-# Отклонения от предсказанных значений — разброс оценки: медиана по $200$
-# прогонам сама имеет относительную погрешность около $8\,\%$, и наклон,
-# подогнанный по двум декадам, определён примерно до $\pm0{,}03$; сильнее всех
-# гуляет бернуллиевский закон, у которого уклонение задаётся редкими выбросами.
+# виде кривой: измеренные наклоны на двух последних декадах равны $-0{,}517$
+# (нормальный), $-0{,}551$ (равномерный), $-0{,}529$ (бернуллиевский),
+# $-0{,}326$ (Парето, предсказано $-1/3$) и $+0{,}041$ (Коши, предсказано $0$).
+# Отклонения от предсказанных значений — разброс оценки: $90\,\%$-интервал
+# медианы по $200$ прогонам имеет относительную ширину $0{,}27$ против $1{,}26$
+# при восьми прогонах (напечатано выше), и наклон, подогнанный по двум декадам,
+# эту неопределённость наследует.
 # Существенно другое: три закона с конечной дисперсией дают наклон около
-# $-1/2$, Парето — заметно положе, а Коши — ноль. Парето сходится
-# ступенями — каждая ступень есть одно большое наблюдение, поглощаемое затем
-# ростом $N$. У Коши межквартильный размах выборочного среднего равен $2$ при
+# $-1/2$, Парето — заметно положе, а Коши — ноль. (Ступеньки, которыми
+# отдельная траектория Парето идёт вниз, на левой панели не видны и видны быть
+# не могут: там нарисована медиана по $200$ прогонам, а не траектория.)
+# У Коши межквартильный размах выборочного среднего равен $2$ при
 # $N=1$ и при $N=1000$ одинаково, то есть тысяча измерений не лучше одного. Это
 # и есть отказ теоремы Хинчина при $\E|\xi| = \infty$.
 
@@ -306,11 +319,12 @@ print(f"полуширина 95%-интервала = {half:.4f}, интерва
 print(f"длина = {2*half:.4f}, тривиальный интервал [1000; 6000] длиной 5000, "
       f"отношение = {5000/(2*half):.4f}")
 check_golden("dice_halfwidth", half)
-check_golden("dice_len_ratio", 5000 / (2 * half))
+
 
 dice = rng_dice.integers(1, 7, size=(20_000, N_DICE), dtype=np.int8).sum(axis=1, dtype=np.int32)
 cover = np.mean(np.abs(dice - mu_dice) <= half)
 print(f"фактическое покрытие по 20000 прогонам: {cover:.4f}")
+check_golden("dice_cover", cover)
 
 # %% [markdown]
 # Предсказание про асимметрию не сбылось, и прежде чем объяснять, проверим, при
@@ -328,6 +342,10 @@ def coverage_sym(N, p):
     return stats.binom.cdf(hi, N, p) - stats.binom.cdf(lo - 1, N, p)
 
 
+# NB: this is a DIFFERENT interval from exact_coverage above. That one covers
+# |mu/N - p| <= eps with eps fixed at 0.01; this one covers |mu - Np| <= z*sqrt(Npq),
+# whose width follows N. At N = 1825 they differ by one lattice atom, hence
+# 0.9532 there against 0.9471 here.
 print("покрытие симметричного интервала по ЦПТ при p = 0.05 и малых N:")
 for n in (10, 30, 50, 100, 300, 1000, 1825):
     print(f"  N = {n:5d}  Np = {n*P_RARE:6.2f}  покрытие = {coverage_sym(n, P_RARE):.4f}")
@@ -343,7 +361,10 @@ for n in (10, 30, 50, 100, 300, 1000, 1825):
 # $p=0{,}5$, и таблица выше показывает, что дело не в величине $N$: уже при
 # $N=30$, когда $Np=1{,}5$, покрытие равно $0{,}9392$, а при $N=50$ — $0{,}9622$.
 # То есть симметричный двусторонний интервал устойчив к асимметрии с самого
-# начала.
+# начала. (Интервал здесь другой, чем в таблице выше: там ширина задана
+# требуемой точностью $\varepsilon$, здесь она следует за $N$ как
+# $z\sqrt{Npq}$; при $N=1825$ границы расходятся на один атом решётки, отсюда
+# $0{,}9532$ там и $0{,}9471$ здесь.)
 #
 # Причина в том, какой именно функционал меряется. Ведущая поправка к
 # нормальному приближению нечувствительна к знаку аргумента — она чётна по $x$,
@@ -447,7 +468,9 @@ check_golden("D30_bern005", D[f"Бернулли, p={P_RARE}"][N_LIST == 30][0])
 # %% [markdown]
 # Та же величина — для генератора нормальных чисел Соболя: сумма двенадцати
 # независимых равномерных на $[0,1]$ минус шесть. Функция распределения суммы
-# (закон Ирвина — Холла) считается свёрткой на сетке.
+# (закон Ирвина — Холла) выписывается замкнутой формулой; знакопеременная сумма
+# в ней теряет в `float64` третий знак, поэтому считаем в точной целочисленной
+# арифметике.
 
 # %%
 def irwin_hall_cdf(x, n=12):
@@ -499,10 +522,14 @@ check_golden("sum12_sup", d_sum12)
 #    здесь мы не будем: ниже оно **опознаётся по совпадению чисел**, а не
 #    доказывается.
 #
-# Сумма двух вкладов воспроизводит измеренные постоянные с точностью $10^{-3}$
-# (проверка ниже; у бернуллиевского с $p=0{,}05$ расхождение как раз порядка
-# $10^{-3}$ — величина $D_N\sqrt N$ у решётчатого закона колеблется и при
-# $N=3000$ ещё не вышла на предел). Практический вывод от этого только крепнет:
+# Сумма двух вкладов воспроизводит измеренные постоянные с точностью
+# $5\cdot10^{-4}$ (проверка ниже). Свидетельство дают две строки таблицы из
+# трёх: у симметричного бернуллиевского закона совпадение тождественно — при
+# $p=0{,}5$ скачок в нуле делится пополам значением $\Phi(0)=1/2$, так что
+# уклонение **равно** половине центрального атома независимо от того, верно ли
+# опознание. Содержательны показательный закон (совпадение до пятого знака при
+# нулевом решётчатом вкладе) и бернуллиевский с $p=0{,}05$, где работают оба
+# вклада. Практический вывод от этого только крепнет:
 # правило «$N \geq 30$» ложно, а смотреть надо не на $N$ и даже не на
 # $\rho_3/\sigma^3$, а на асимметрию и на решётчатость слагаемого. При
 # $p=0{,}05$ и $N=30$ уклонение $D_{30}=0{,}216$ — пятая часть всей шкалы
@@ -536,6 +563,10 @@ cases = {
     f"Бернулли, p={P_RARE}": (half_max_jump(N_LIST[-1], P_RARE), skew_bern[P_RARE]),
     "показательный": (0.0, skew_exp),
 }
+# The symmetric-Bernoulli row is a tautology and proves nothing about the
+# Edgeworth identification: for p = 0.5 the jump at z = 0 is split evenly by
+# Phi(0) = 0.5, so sup|F - Phi| IS half the central atom, whatever the skewness
+# term happens to be. The informative rows are the other two.
 print(f"\n{'закон':>22} {'решётка':>10} {'асимметрия':>12} {'сумма':>10} {'измерено':>10} {'разница':>10}")
 for name, (lat, g1) in cases.items():
     sk = abs(g1) / (6 * np.sqrt(2 * np.pi))
@@ -595,13 +626,12 @@ loc = np.log(N_PAR[-1] / N_PAR[-2])
 print(f"локальный наклон на [{N_PAR[-2]}; {N_PAR[-1]}]: "
       f"sqrt(N) {np.log(iqr_sqrt[-1]/iqr_sqrt[-2])/loc:+.4f}, "
       f"N^(1/alpha) {np.log(iqr_alpha[-1]/iqr_alpha[-2])/loc:+.4f}")
-# Контроль арифметики, а НЕ проверка теории: обе кривые получены делением одного
-# и того же массива на два масштаба, поэтому разность наклонов равна
-# 1/alpha - 1/2 тождественно — хоть на выборке Парето, хоть на чистом шуме.
+# An arithmetic control, NOT a test of the theory: both curves come from dividing
+# one and the same array by two scales, so the slope difference equals
+# 1/alpha - 1/2 identically — on Pareto data and on pure noise alike.
 print(f"контроль арифметики: разность наклонов = {slope_sqrt - slope_alpha:+.6f}, "
       f"1/alpha - 1/2 = {1/ALPHA_PARETO - 0.5:+.6f} (тождество)")
-local = np.log(N_PAR[-1] / N_PAR[-2])
-check_golden("pareto_local_slope", np.log(iqr_sqrt[-1] / iqr_sqrt[-2]) / local)
+check_golden("pareto_local_slope", np.log(iqr_sqrt[-1] / iqr_sqrt[-2]) / loc)
 check_golden("pareto_iqr_alpha_last", iqr_alpha[-1])
 
 # %% [markdown]
