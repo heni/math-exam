@@ -66,7 +66,7 @@ convergence*).
 
 - **почти наверное:** $\Prob\{\zeta_N\to\zeta\}=1$;
 - **по вероятности:** $\Prob\{\abs{\zeta_N-\zeta}\ge\varepsilon\}\to0$;
-- **в среднем порядка $r$** ($L_r$): $\E\abs{\zeta_N-\zeta}^r\to0$; рабочий
+- **в среднем порядка $r>0$** ($L_r$): $\E\abs{\zeta_N-\zeta}^r\to0$; рабочий
   случай $r=2$ — среднее квадратичное;
 - **по распределению:** $F_{\zeta_N}(x)\to F_\zeta(x)$ в точках непрерывности.
 
@@ -112,9 +112,9 @@ $\Var\xi\ge a^2$, и требует конечной дисперсии.
 ## Неравенство Йенсена: лестница моментов
 
 \begin{theorem}
-Пусть $\varphi\colon\R\to\R$ выпукла, $\E\abs{\xi}<\infty$ и
-$\E\abs{\varphi(\xi)}<\infty$. Тогда
-\[ \varphi(\E\xi)\ \le\ \E\varphi(\xi) . \]
+Пусть $\psi\colon\R\to\R$ выпукла, $\E\abs{\xi}<\infty$ и
+$\E\abs{\psi(\xi)}<\infty$. Тогда
+\[ \psi(\E\xi)\ \le\ \E\psi(\xi) . \]
 \end{theorem}
 
 Доказательство — опорная прямая в точке $\E\xi$ и монотонность математического
