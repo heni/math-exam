@@ -265,6 +265,34 @@ sys.exit(bad)
 PYBS
 [ $? -eq 0 ] && note "чисто" || fail=1
 
+echo "== 12. Выключная формула \[...\] вне LaTeX-окружения =="
+# Вне окружений pandoc считает обратную косую перед скобкой экранированием, и
+# «\[» превращается в обычную «[»: формула попадает в LaTeX текстом, сборка
+# падает на первом же \begin{aligned} или на «Missing $». Внутри окружений
+# содержимое идёт сырым, и там «\[…\]» работает — поэтому гейт смотрит глубину.
+# Правило записано в docs/build.md; за одну сессию ловушка сработала дважды,
+# оба раза при переносе блока из окружения в прозу.
+python3 - <<'PYBR'
+import re, glob, sys
+bad = 0
+for path in sorted(glob.glob('questions/*/theory.md') + glob.glob('questions/*/slides.md')
+                   + glob.glob('docs/*.md')):
+    depth = 0
+    for i, line in enumerate(open(path, encoding='utf8'), 1):
+        opens = len(re.findall(r'\\begin\{', line))
+        closes = len(re.findall(r'\\end\{', line))
+        inside = depth > 0 or opens > closes
+        # `\[` в обратных кавычках — это описание правила, а не разметка:
+        # так оно и стоит в docs/build.md, который иначе флагает сам себя.
+        probe = re.sub(r'`[^`]*`', '', line)
+        if not inside and (re.search(r'(?<!\\)\\\[', probe) or re.search(r'(?<!\\)\\\]', probe)):
+            print(f'  [!] {path}:{i}: \\[…\\] вне окружения — писать $$…$$')
+            bad = 1
+        depth += opens - closes
+sys.exit(bad)
+PYBR
+[ $? -eq 0 ] && note "чисто" || fail=1
+
 echo "== 11. Кириллица внутри \\mathrm и родственных =="
 # В конспекте (scrartcl) такой индекс печатается, в beamer — нет: metropolis берёт
 # математический шрифт из Latin Modern, где кириллицы нет, и буквы ПРОПАДАЮТ, а
