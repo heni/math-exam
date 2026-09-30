@@ -52,6 +52,7 @@ GOLDEN = {
     "c95_level": 5.991464547107982,
     "sigma_frac_c10": 0.9629161576112543,
     "cov_offdiag_before": 1.8047048731722592,
+    "axis_ratio": 5.555387915047686,
 }
 TOL = 1e-3
 
@@ -313,7 +314,10 @@ lam, Q = lam[order], Q[:, order]
 print(f"собственные значения: {lam[0]:.6f}, {lam[1]:.6f}")
 print(f"след = {np.trace(Gamma):.6f} = сумма собственных = {lam.sum():.6f}")
 print(f"r(компонент) = {Gamma[0,1]/np.sqrt(Gamma[0,0]*Gamma[1,1]):.4f}")
+axis_ratio = float(np.sqrt(lam[0] / lam[1]))
+print(f"отношение полуосей sqrt(lam1/lam2) = {axis_ratio:.4f}")
 check_golden("lambda_max", lam[0])
+check_golden("axis_ratio", axis_ratio)
 
 sample = a_vec + rng3.standard_normal((N3, 2)) @ np.linalg.cholesky(Gamma).T
 d = sample - a_vec
