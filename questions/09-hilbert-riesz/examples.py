@@ -51,9 +51,12 @@ SAVE_KW = {"metadata": {"CreationDate": None}}
 # half, "reproducibility" only checks a run against itself, which proves nothing.
 # A mismatch aborts the notebook build, so the pin acts as a gate.
 #
-# Tolerance is set per pin: quantities available in closed form get machine
-# level; quantities that depend on floating-point cancellation (the monomial
-# route past n = 12) get a tolerance reflecting the actual spread.
+# Tolerance is set per pin. Closed-form quantities get machine level. Quantities
+# that come out of the near-singular solve are deterministic for a fixed BLAS but
+# not portable across libraries, so they are pinned tightly HERE and their
+# fragility is the subject of example 3 rather than something to hide behind a
+# wide tolerance: a pin loose enough to survive a different BLAS would also
+# survive a wrong formula.
 GOLDEN = {
     # Closed form, derived in theory.md and cross-checked against exact quadrature.
     "rho2_ramp_100": (0.05773502691896257, 1e-12),
@@ -78,13 +81,17 @@ GOLDEN = {
     # Double-precision artefacts, and that IS the subject of example 3: all four
     # come out of a nearly singular solve, so their low digits depend on the BLAS
     # in use. The tolerance says how much of the value is meaningful.
-    "cond_hilbert_10": (522772452573708.7, 0.5),
-    "resid_monomial_direct_18": (0.20580319148145088, 1e-2),
-    "resid_monomial_identity_18": (0.20863841512657166, 1e-2),
-    "overshoot_18_percent": (10.962714577773648, 5e-2),
-    "ratio_40": (1.6448882858203937, 5e-2),
-    # Sampled: supremum over 300 random directions, so it depends on the stream.
+    "cond_hilbert_10": (522772452573708.7, 1e-9),
+    "resid_monomial_direct_18": (0.20580319148145088, 1e-9),
+    "resid_monomial_identity_18": (0.20863841512657166, 1e-9),
+    "overshoot_18_percent": (10.962714577773648, 1e-9),
+    "ratio_40": (1.6448882858203937, 1e-9),
+    "n_below_min_count": (6.0, 1e-12),
+    # Sampled: depend on the stream, so each is pinned to its own run value.
     "sup_ratio_random": (0.5991891136847162, 1e-9),
+    "defect_random_p1": (0.35104020808055836, 1e-9),
+    "defect_random_p4": (1.1591973076350506, 1e-9),
+    "riesz_check_worst": (3.6637359812630166e-14, 1.0),
     "best_possible_deg25": (0.9879174481375977, 1e-12),
     "attained_deg25": (0.9879174481375977, 1e-9),
     "haar_resid": (0.0, 1e-12),
@@ -128,11 +135,9 @@ def contrast(values_left_right):
     return left - right
 
 
-# Midpoint grid on NCELL equal cells. NCELL is chosen so that every breakpoint
-# used below — 1/2, the 1/100 boundaries of the random step functions, the dyadic
-# 1/16 boundaries of the Haar system — falls on a CELL BOUNDARY. For a function
-# that is constant inside each cell the midpoint rule is then exact, not
-# approximate, and no midpoint ever lands on 1/2, where sign() is undefined.
+# Midpoint grid. NCELL puts every breakpoint used below (1/2, the 1/100 and the
+# dyadic 1/16 boundaries) on a CELL BOUNDARY, which makes the midpoint rule exact
+# for cell-wise constant functions and keeps 1/2 off the nodes.
 NCELL = 200_000
 assert NCELL % 200 == 0 and NCELL % 16 == 0
 GRID = (np.arange(NCELL) + 0.5) / NCELL
@@ -355,18 +360,22 @@ def piecewise_random(size):
 xs = piecewise_random(TRIALS)
 ys = piecewise_random(TRIALS)
 
-print("   p    max|D| по 400 случайным парам")
+print("   p    max|D| по 400 случайным парам   типичная норма пары")
+worst_by_p = {}
 for p in [1.0, 2.0, 4.0]:
-    worst = max(abs(defect_grid(xs[i], ys[i], p)) for i in range(TRIALS))
-    print(f"{p:5.2f}   {worst:.3e}")
+    worst_by_p[p] = max(abs(defect_grid(xs[i], ys[i], p)) for i in range(TRIALS))
+    scale = np.median([grid_norm(xs[i], p) ** 2 for i in range(TRIALS)])
+    print(f"{p:5.2f}   {worst_by_p[p]:.3e}                  {scale:.3f}")
 
-worst_p2 = max(abs(defect_grid(xs[i], ys[i], 2.0)) for i in range(TRIALS))
-assert worst_p2 < 1e-9, "тождество параллелограмма нарушилось при p=2 — ошибка в счёте"
+assert worst_by_p[2.0] < 1e-9, "тождество параллелограмма нарушилось при p=2 — ошибка в счёте"
+check_golden("defect_random_p1", worst_by_p[1.0])
+check_golden("defect_random_p4", worst_by_p[4.0])
 
 # %% [markdown]
 # **Сбылось.** Замкнутая формула совпала с квадратурой, ноль достигается ровно
 # при $p = 2$, и на случайных парах дефект при $p=2$ остаётся на уровне
-# машинной точности, а при $p = 1$ и $p = 4$ — величиной порядка самих норм.
+# машинной точности, а при $p = 1$ и $p = 4$ он сравним с квадратом нормы самой
+# пары — то есть не мал, а того же порядка, что и члены тождества.
 # Вывод, который стоит проговорить: из всего семейства $L_p$ геометрия углов
 # есть только у $p = 2$, и потому теорема о проекции применима только к нему.
 
@@ -475,11 +484,7 @@ check_golden("legendre_c3", coefs[3])
 
 # %%
 def residual_direct(phi, order):
-    """||u - phi||_2 by exact piecewise Gauss-Legendre on the two halves.
-
-    This is the honest measurement: it asks how far the polynomial ACTUALLY
-    produced is from u, without assuming that it is the exact minimiser.
-    """
+    """||u - phi||_2 by exact piecewise Gauss-Legendre: no minimality assumed."""
     integrand = lambda t: (phi(t) - signal(t)) ** 2
     val = (gauss_integral(integrand, 0.0, 0.5, order)
            + gauss_integral(integrand, 0.5, 1.0, order))
@@ -516,7 +521,8 @@ check_golden("resid_legendre_40", resid_legendre[40])
 # Rate of decay: measured, not asserted from theory.
 fit_ns = np.arange(5, NMAX + 1, 2)
 slope = float(np.polyfit(np.log(fit_ns), np.log(resid_legendre[fit_ns]), 1)[0])
-print(f"\nнаклон log(невязка) по log(n) на нечётных n от 5 до {NMAX}: {slope:.6f}")
+print(f"\nнаклон log(невязка) по log(n) на нечётных n "
+      f"от {fit_ns[0]} до {fit_ns[-1]}: {slope:.6f}")
 print(f"для сравнения, показатель n^(-1/2) равен -0,5")
 check_golden("slope_legendre_resid", slope)
 
@@ -542,13 +548,9 @@ def monomial_poly(c):
     return lambda t: np.polyval(c[::-1], np.asarray(t, dtype=float))
 
 
-# Three quantities, and keeping them apart is the whole point of this example:
-#   * resid_mono_direct  — how far the polynomial the solver ACTUALLY returned is
-#     from u. This is what a practitioner gets.
-#   * resid_mono_identity — what formula (4) of theory.md predicts, sqrt(1 - c.b).
-#     That identity holds only AT the exact solution of Gc = b, which is exactly
-#     what a near-singular solve fails to deliver, so the two part company.
-#   * resid_legendre — the true minimum over the same subspace.
+# Three quantities kept apart on purpose: what the solver returned, what the
+# identity predicts, and the true minimum. Why they differ — theory.md, section
+# on the computational side.
 cond_list, resid_mono_direct, resid_mono_identity = [], [], []
 for n in range(1, NMAX + 1):
     G, b = hilbert_gram(n), monomial_rhs(n)
@@ -574,6 +576,12 @@ assert np.all(resid_mono_direct >= resid_legendre[1:NMAX + 1] - 1e-9), \
 check_golden("cond_hilbert_10", cond_list[9])
 check_golden("resid_monomial_direct_18", resid_mono_direct[17])
 check_golden("resid_monomial_identity_18", resid_mono_identity[17])
+
+below_min = [n for n in range(1, NMAX + 1)
+             if resid_mono_identity[n - 1] < resid_legendre[n] - 1e-12]
+print(f"\nn, при которых обещанное тождеством НИЖЕ минимума по подпространству: {below_min}")
+print("  (ни один элемент подпространства такого дать не может)")
+check_golden("n_below_min_count", float(len(below_min)))
 
 n_break = next(n for n in range(1, NMAX + 1)
                if abs(resid_mono_direct[n - 1] - resid_legendre[n]) > 1e-3)
@@ -622,7 +630,7 @@ for name, c in haar_coefs:
 nonzero = [(name, c) for name, c in haar_coefs if abs(c) > 1e-12]
 haar_energy = sum(c ** 2 for _, c in haar_coefs)
 print(f"\nненулевых коэффициентов: {len(nonzero)} — {nonzero}")
-print(f"сумма квадратов всех пятнадцати коэффициентов: {haar_energy:.12f}")
+print(f"сумма квадратов всех {len(haar_coefs)} коэффициентов: {haar_energy:.12f}")
 
 # The residual after keeping the single nonzero term, measured directly rather
 # than through Parseval: the point of D03 applies here too.
@@ -655,11 +663,14 @@ resid_haar_direct = max(haar_resid_direct, 1e-17)  # для логарифмич
 #
 # Средний столбец — честная невязка того многочлена, который вернул решатель;
 # правый — то, что предсказывает тождество $\sqrt{1-c^{\top}b}$, верное только в
-# точном решении системы. Они расходятся более чем на $10^{-3}$ уже с $n=11$, и
-# правый столбец при $n=12$ и $n=40$ оказывается **ниже** истинного минимума —
-# чего не может быть ни у какого элемента подпространства. Точность теряется с
-# $n=12$; при $n=18$ завышение составляет $11{,}0\,\%$, при $n=40$ — в $1{,}64$
-# раза.
+# точном решении системы. Они расходятся более чем на $10^{-3}$ уже с $n=11$.
+# Точность теряется с $n=12$; при $n=18$ завышение составляет $11{,}0\,\%$, при
+# $n=40$ — в $1{,}64$ раза.
+#
+# Самое наглядное — не расхождение, а то, что правый столбец шесть раз из сорока
+# (при $n = 5, 6, 10, 11, 12, 19$) оказывается **ниже истинного минимума** по
+# подпространству. Ни один элемент подпространства такого дать не может, и это
+# верный признак, что тождество применено вне своей посылки.
 #
 # Обусловленность матрицы Гильберта при $n = 10$ равна $5{,}2\cdot10^{14}$:
 # правило «относительная погрешность решения порядка
@@ -710,8 +721,10 @@ ax[1].loglog(nn, resid_mono_direct, "--", lw=1.8,
              label="одночлены: что получено на деле")
 ax[1].loglog(nn, resid_mono_identity, "-.", lw=1.4, color="darkorange",
              label=r"одночлены: что обещает $\sqrt{1-c^{\top}b}$")
-ax[1].plot([1], [resid_haar_direct], "o", ms=8, color="crimson", zorder=5,
-           label="Хаар: один коэффициент")
+# The Haar point does not live on this axis (its subspace is not polynomial), so
+# it is drawn at the left edge as a reference level, not as a value of n.
+ax[1].axhline(resid_haar_direct, color="crimson", ls=":", lw=1.2,
+              label="Хаар: один коэффициент, невязка 0")
 ax[1].set_xlabel("степень многочлена $n$")
 ax[1].set_ylabel(r"$\|u-\varphi\|_2$")
 ax[1].set_title("невязка: минимум, достигнутое и обещанное")
@@ -802,6 +815,7 @@ for _ in range(TRIALS_RIESZ):
     sup_ratio = max(sup_ratio, abs(by_def) / float(np.linalg.norm(a)))
 print(f"max|f(x) - <x,-u>| по {TRIALS_RIESZ} случайным многочленам степени {DEG}: {worst:.3e}")
 assert worst < 1e-10, "представление Рисса не выполнилось — ошибка в счёте или в формуле"
+check_golden("riesz_check_worst", worst)
 
 # The Riesz isometry ||f|| = ||y|| is the claim of the example, so it gets
 # measured rather than assumed. On the subspace of polynomials of degree <= DEG
@@ -832,13 +846,15 @@ check_golden("attained_deg25", attained)
 
 # %% [markdown]
 # Теперь неограниченный функционал. Он задан не на всём $l_2$, а на плотном
-# линейном многообразии $D = \{x : \sum_k k^2\lvert x_k\rvert^2 < \infty\}$ —
-# ровно тот случай, который разбирает замечание конспекта о посылке
-# непрерывности.
+# линейном многообразии $D_g = \{x \in l_2 : \sum_k k\lvert x_k\rvert < \infty\}$,
+# где ряд для $g$ сходится абсолютно по самому определению множества, — ровно
+# тот случай, который разбирает замечание конспекта о посылке непрерывности.
+# Условие взято в этой форме, а не в виде $\sum_k k^2\lvert x_k\rvert^2<\infty$:
+# второе слабее и сходимости ряда не даёт (контрпример в конспекте).
 
 # %%
 def unbounded_partial_norm(n):
-    """||s_n|| for g(x) = sum k x_k: s_n = sum_{k<=n} k e_k."""
+    """||s_n|| for g(x) = sum k x_k on D_g: s_n = sum_{k<=n} k e_k."""
     return np.sqrt(n * (n + 1) * (2 * n + 1) / 6.0)
 
 
@@ -869,7 +885,7 @@ assert slope_g_near < slope_g_far < 1.5, "наклон должен расти �
 # неограниченного.** Частичные нормы представителя растут монотонно и снизу к
 # $\lVert f\rVert = 1$, никогда её не превышая, — это неравенство Бесселя в
 # действии; представление $f(x) = \langle x, -u\rangle$ выполнилось на трёхсот
-# случайных многочленах с точностью $10^{-14}$, причём две стороны равенства
+# случайных многочленах с наибольшим уклонением $3{,}7\cdot10^{-14}$, причём две стороны равенства
 # посчитаны независимо.
 #
 # Изометрия Рисса $\lVert f\rVert = \lVert y\rVert$ тоже измерена, а не принята
@@ -891,7 +907,7 @@ assert slope_g_near < slope_g_far < 1.5, "наклон должен расти �
 # $n^{3/2}\sqrt{1 + 3/(2n) + 1/(2n^2)}/\sqrt3$, то есть отличается от
 # $n^{3/2}/\sqrt3$ множителем $1 + O(1/n)$, и на малых $n$ этот множитель
 # занижает наклон. Таблица выше показывает, как наклон подходит к $3/2$ снизу:
-# $1{,}479$ на диапазоне 5–200 и $1{,}499$ на 100–2000. Для вывода это ничего не
+# $1{,}479$ на диапазоне 5–200 и $1{,}498$ на 100–2000. Для вывода это ничего не
 # меняет — рост неограничен, — но числу «1,5» на малых $n$ доверять нельзя, и
 # это ровно тот случай, когда порядок роста надо мерить на нескольких
 # диапазонах, а не на одном.
@@ -917,7 +933,7 @@ nn = np.arange(1, NMAX + 1)
 ax[0].plot(nn, partial_representer_norm[1:NMAX + 1], lw=1.8, marker="o", ms=3,
            label=r"$\|y_n\|$, функционал контраста")
 ax[0].axhline(norm_f, color="crimson", ls="--", lw=1.2, label=r"$\|f\|=1$ (предел Бесселя)")
-ax[0].set_xlabel("число членов $n$")
+ax[0].set_xlabel("число членов ряда")
 ax[0].set_ylabel(r"$\|y_n\|$")
 ax[0].set_ylim(0, 1.15)
 ax[0].set_title("ограниченный функционал: рост снизу к норме")
@@ -929,7 +945,7 @@ ax[1].loglog(ns_plot, [unbounded_partial_norm(n) for n in ns_plot], lw=1.8,
              label=r"$\|s_n\|$, $g(x)=\sum k x_k$")
 ax[1].loglog(ns_plot, ns_plot ** 1.5 / np.sqrt(3.0), ":", lw=1.2, color="gray",
              label=r"$n^{3/2}/\sqrt{3}$")
-ax[1].set_xlabel("число членов $n$")
+ax[1].set_xlabel("число членов ряда")
 ax[1].set_ylabel(r"$\|s_n\|$")
 ax[1].set_title("неограниченный функционал: расходимость")
 ax[1].legend(fontsize=8, loc="upper left")
