@@ -32,13 +32,9 @@ from numpy.polynomial import legendre as npleg
 
 SEED = 20260930
 
-# Randomness is used only for spot-checks of identities that must hold for EVERY
-# element (Riesz representation, parallelogram law): one hand-picked pair proves
-# far less than a sweep over random ones.
-#
-# Separate streams per example. A shared one would couple them: changing the
-# number of trials in example 2 would shift every sampled number in example 4,
-# and the pins with them.
+# Randomness only spot-checks identities that must hold for EVERY element.
+# Separate streams per example, so changing one example's trial count does not
+# shift the sampled numbers of another.
 rng_parallelogram, rng_riesz = (np.random.default_rng([SEED, k]) for k in range(2))
 
 FIGDIR = "figures"
@@ -47,16 +43,9 @@ FIGDIR = "figures"
 # bytes on every rebuild and `git diff` stops telling content from clock.
 SAVE_KW = {"metadata": {"CreationDate": None}}
 
-# Golden pins: seed AND expected output are frozen constants. Without the second
-# half, "reproducibility" only checks a run against itself, which proves nothing.
-# A mismatch aborts the notebook build, so the pin acts as a gate.
-#
-# Tolerance is set per pin. Closed-form quantities get machine level. Quantities
-# that come out of the near-singular solve are deterministic for a fixed BLAS but
-# not portable across libraries, so they are pinned tightly HERE and their
-# fragility is the subject of example 3 rather than something to hide behind a
-# wide tolerance: a pin loose enough to survive a different BLAS would also
-# survive a wrong formula.
+# Golden pins: seed AND expected value are frozen, and a mismatch aborts the
+# build. Why the tolerances differ per pin — theory.md, section on the
+# computational side.
 GOLDEN = {
     # Closed form, derived in theory.md and cross-checked against exact quadrature.
     "rho2_ramp_100": (0.05773502691896257, 1e-12),
@@ -86,7 +75,8 @@ GOLDEN = {
     "resid_monomial_identity_18": (0.20863841512657166, 1e-9),
     "overshoot_18_percent": (10.962714577773648, 1e-9),
     "ratio_40": (1.6448882858203937, 1e-9),
-    "n_below_min_count": (6.0, 1e-12),
+    "n_below_min_count": (3.0, 1e-12),
+    "max_shortfall": (0.020520356043589705, 1e-9),
     # Sampled: depend on the stream, so each is pinned to its own run value.
     "sup_ratio_random": (0.5991891136847162, 1e-9),
     "defect_random_p1": (0.35104020808055836, 1e-9),
@@ -577,11 +567,22 @@ check_golden("cond_hilbert_10", cond_list[9])
 check_golden("resid_monomial_direct_18", resid_mono_direct[17])
 check_golden("resid_monomial_identity_18", resid_mono_identity[17])
 
-below_min = [n for n in range(1, NMAX + 1)
-             if resid_mono_identity[n - 1] < resid_legendre[n] - 1e-12]
-print(f"\nn, при которых обещанное тождеством НИЖЕ минимума по подпространству: {below_min}")
-print("  (ни один элемент подпространства такого дать не может)")
+# Below the minimum by HOW MUCH: at small n the same inequality holds at the
+# 1e-15 level, which is rounding and says nothing. The phenomenon is the gap
+# that rounding cannot explain, so the shortfalls are printed and the count is
+# taken at a level three orders above the largest rounding-scale gap observed.
+shortfall = {n: resid_legendre[n] - resid_mono_identity[n - 1]
+             for n in range(1, NMAX + 1)
+             if resid_mono_identity[n - 1] < resid_legendre[n]}
+print("\nn, при которых обещанное тождеством ниже минимума, и на сколько:")
+for n, d in shortfall.items():
+    print(f"  n={n:3d}: недобор {d:.3e}")
+BELOW_LEVEL = 1e-4
+below_min = [n for n, d in shortfall.items() if d > BELOW_LEVEL]
+print(f"\nиз них ощутимо (недобор больше {BELOW_LEVEL:g}): {below_min}")
+print("  ни один элемент подпространства такого дать не может")
 check_golden("n_below_min_count", float(len(below_min)))
+check_golden("max_shortfall", max(shortfall.values()))
 
 n_break = next(n for n in range(1, NMAX + 1)
                if abs(resid_mono_direct[n - 1] - resid_legendre[n]) > 1e-3)
@@ -667,10 +668,16 @@ resid_haar_direct = max(haar_resid_direct, 1e-17)  # для логарифмич
 # Точность теряется с $n=12$; при $n=18$ завышение составляет $11{,}0\,\%$, при
 # $n=40$ — в $1{,}64$ раза.
 #
-# Самое наглядное — не расхождение, а то, что правый столбец шесть раз из сорока
-# (при $n = 5, 6, 10, 11, 12, 19$) оказывается **ниже истинного минимума** по
-# подпространству. Ни один элемент подпространства такого дать не может, и это
-# верный признак, что тождество применено вне своей посылки.
+# Самое наглядное — не расхождение, а то, что правый столбец оказывается **ниже
+# истинного минимума** по подпространству: при $n = 11, 12, 19$ недобор
+# составляет от $4\cdot10^{-4}$ до $2\cdot10^{-2}$. Ни один элемент
+# подпространства такого дать не может, и это верный признак, что тождество
+# применено вне своей посылки.
+#
+# Порог здесь назван нарочно. То же неравенство формально выполняется и при
+# $n = 1, 3, 4, 5, 6, 10$, но с недобором от $10^{-16}$ до $10^{-7}$ — это
+# округление, и считать его проявлением явления значило бы мерить порог, а не
+# предмет.
 #
 # Обусловленность матрицы Гильберта при $n = 10$ равна $5{,}2\cdot10^{14}$:
 # правило «относительная погрешность решения порядка
@@ -817,12 +824,9 @@ print(f"max|f(x) - <x,-u>| по {TRIALS_RIESZ} случайным многочл
 assert worst < 1e-10, "представление Рисса не выполнилось — ошибка в счёте или в формуле"
 check_golden("riesz_check_worst", worst)
 
-# The Riesz isometry ||f|| = ||y|| is the claim of the example, so it gets
-# measured rather than assumed. On the subspace of polynomials of degree <= DEG
-# the supremum of |f(x)|/||x|| is attained at the partial representer itself, so
-# the maximiser is known and both sides can be computed by INDEPENDENT routes:
-# the numerator by exact quadrature from the definition of f, the denominator by
-# exact quadrature of ||x||_2.
+# The Riesz isometry is measured, not assumed: on this subspace the supremum is
+# attained at the partial representer, so both sides go by independent routes —
+# exact quadrature against the coefficient formula.
 a_max = f_on_legendre[: DEG + 1]
 x_max = lambda t: legendre_combination_at(a_max, t)
 num = contrast((gauss_integral(x_max, 0.0, 0.5, order=DEG + 2),
