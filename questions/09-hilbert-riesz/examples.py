@@ -35,7 +35,11 @@ SEED = 20260930
 # Randomness is used only for spot-checks of identities that must hold for EVERY
 # element (Riesz representation, parallelogram law): one hand-picked pair proves
 # far less than a sweep over random ones.
-rng = np.random.default_rng(SEED)
+#
+# Separate streams per example. A shared one would couple them: changing the
+# number of trials in example 2 would shift every sampled number in example 4,
+# and the pins with them.
+rng_parallelogram, rng_riesz = (np.random.default_rng([SEED, k]) for k in range(2))
 
 FIGDIR = "figures"
 
@@ -62,19 +66,28 @@ GOLDEN = {
     "legendre_c3": (-0.3307189138830738, 1e-12),
     # 63/256 exactly: the residual after nine Legendre terms is dyadic.
     "resid_legendre_9": (0.24609375, 1e-12),
-    "haar_resid": (0.0, 1e-12),
-    "norm_f": (1.0, 1e-12),
     # Sums of forty closed-form terms: deterministic, but the value has no short
     # closed form, so it is copied from a run rather than written by hand.
     "resid_legendre_40": (0.12537068761957862, 1e-12),
     "slope_legendre_resid": (-0.4504852028275246, 1e-9),
     "slope_unbounded_near": (1.4793384337184585, 1e-9),
     "slope_unbounded_far": (1.4984591793836657, 1e-9),
-    # Double-precision artefacts, and that IS the subject of example 3: both
-    # quantities come out of a nearly singular solve, so their low digits depend
-    # on the BLAS in use. The tolerance says how much of the value is meaningful.
+    # Identity check of Parseval: the two independent routes must agree at
+    # machine level, so the pin is the size of the gap, not a value.
+    "legendre_identity_gap": (1.587618925213974e-14, 1.0),
+    # Double-precision artefacts, and that IS the subject of example 3: all four
+    # come out of a nearly singular solve, so their low digits depend on the BLAS
+    # in use. The tolerance says how much of the value is meaningful.
     "cond_hilbert_10": (522772452573708.7, 0.5),
-    "resid_monomial_18": (0.20863841512657166, 1e-2),
+    "resid_monomial_direct_18": (0.20580319148145088, 1e-2),
+    "resid_monomial_identity_18": (0.20863841512657166, 1e-2),
+    "overshoot_18_percent": (10.962714577773648, 5e-2),
+    "ratio_40": (1.6448882858203937, 5e-2),
+    # Sampled: supremum over 300 random directions, so it depends on the stream.
+    "sup_ratio_random": (0.5991891136847162, 1e-9),
+    "best_possible_deg25": (0.9879174481375977, 1e-12),
+    "attained_deg25": (0.9879174481375977, 1e-9),
+    "haar_resid": (0.0, 1e-12),
 }
 
 
@@ -227,8 +240,10 @@ for m, n in [(1, 2), (1, 10), (1, 100), (5, 50), (10, 1000), (100, 200)]:
 # m = N + 1 and n -> infinity drives the distance to 1 instead.
 print("\nпроверка фундаментальности в равномерной метрике:")
 for N in (10, 100, 1000):
-    worst = max(float(np.max(np.abs(ramp(GRID, n) - ramp(GRID, N + 1))))
-                for n in (10 * (N + 1), 100 * (N + 1)))
+    m = N + 1
+    # Exact value at the maximising point: the kinks of u_n do NOT fall on cell
+    # boundaries, so a grid maximum would understate the distance.
+    worst = max(1.0 - m / n for n in (10 * m, 100 * m))
     print(f"  N={N:5d}: sup по n>N от rho_inf(u_n, u_(N+1)) не меньше {worst:.6f}")
 
 # The pin fixes the witness used in theory.md, example ex:noteq: the pair
@@ -242,7 +257,7 @@ print(f"\nпара (u_1000, u_2000): rho_inf = {sup_gap:.10f}, rho_2 = {l2_gap:.
 check_golden("sup_gap_ramp", sup_gap)
 
 # %% [markdown]
-# **Сбылось.** Замкнутые формы совпали с квадратурой до $10^{-6}$; в метриках
+# **Сбылось.** Замкнутые формы совпали с точной квадратурой до $10^{-15}$; в метриках
 # $L_1$ и $L_2$ пандусы сходятся, в равномерной — нет, причём разность
 # $u_n - u_{2n}$ держится на $1/2$ в равномерной норме и стремится к нулю в
 # норме $L_2$. Это и есть числовое содержание двух теорем конспекта: множество
@@ -332,7 +347,7 @@ TRIALS = 400
 
 def piecewise_random(size):
     """Random step functions on PIECES equal intervals, evaluated on GRID."""
-    vals = rng.standard_normal((size, PIECES))
+    vals = rng_parallelogram.standard_normal((size, PIECES))
     idx = np.minimum((GRID * PIECES).astype(int), PIECES - 1)
     return vals[:, idx]
 
@@ -397,7 +412,14 @@ plt.show()
 # невязку, пока обусловленность матрицы Гильберта позволяет решить систему;
 # начиная с $n$ порядка десяти одночленный путь начинает врать. Невязка убывает
 # медленно — как $n^{-1/2}$, — потому что скачок гладкими функциями
-# приближается плохо. По Хаару невязка равна нулю при двух слагаемых.
+# приближается плохо. По Хаару ненулевой коэффициент один, и после него невязка
+# нулевая.
+#
+# Невязку каждого пути меряем **прямо** — интегралом $\lVert u-\varphi\rVert_2$
+# от того многочлена, который фактически получен, — и отдельно считаем, что
+# обещает тождество $\lVert u-\varphi\rVert^2=\lVert u\rVert^2-c^{\top}b$. Оно
+# верно только в точном решении системы, поэтому расхождение двух величин само
+# по себе измеряет, насколько решение перестало быть точным.
 
 # %%
 def legendre_shifted_coef(k):
@@ -417,7 +439,7 @@ def legendre_shifted_coef(k):
 def legendre_shifted_coef_quad(k):
     """The same coefficient by Gauss-Legendre on each half: independent check.
 
-    Gauss-Legendre with k+2 nodes is exact for polynomials of degree 2k+3, so on
+    Gauss-Legendre with k+3 nodes is exact for polynomials of degree 2k+5, so on
     each half (where u is constant) the value is exact up to rounding.
     """
     nodes, weights = np.polynomial.legendre.leggauss(k + 3)
@@ -452,13 +474,41 @@ check_golden("legendre_c3", coefs[3])
 # и где-то ошибка.
 
 # %%
+def residual_direct(phi, order):
+    """||u - phi||_2 by exact piecewise Gauss-Legendre on the two halves.
+
+    This is the honest measurement: it asks how far the polynomial ACTUALLY
+    produced is from u, without assuming that it is the exact minimiser.
+    """
+    integrand = lambda t: (phi(t) - signal(t)) ** 2
+    val = (gauss_integral(integrand, 0.0, 0.5, order)
+           + gauss_integral(integrand, 0.5, 1.0, order))
+    return float(np.sqrt(max(val, 0.0)))
+
+
+def legendre_poly(coef_vector):
+    """The partial sum sum_k c_k Pt_k as a callable."""
+    scaled = coef_vector * np.sqrt(2.0 * np.arange(len(coef_vector)) + 1.0)
+    return lambda t: npleg.legval(2.0 * np.asarray(t, dtype=float) - 1.0, scaled)
+
+
 partial = np.cumsum(coefs ** 2)
 assert partial[-1] <= 1.0 + 1e-12, "нарушено неравенство Бесселя — ошибка в коэффициентах"
 resid_legendre = np.sqrt(np.maximum(1.0 - partial, 0.0))
+resid_legendre_direct = np.array(
+    [residual_direct(legendre_poly(coefs[: n + 1]), order=2 * n + 8)
+     for n in range(NMAX + 1)])
 
-print("  n   sum c_k^2      невязка (Лежандр)")
+print("  n   sum c_k^2      невязка по тождеству   невязка прямым счётом   разность")
 for n in (1, 3, 7, 9, 15, 31, 40):
-    print(f"{n:4d}   {partial[n]:.10f}   {resid_legendre[n]:.10f}")
+    print(f"{n:4d}   {partial[n]:.10f}   {resid_legendre[n]:.12f}         "
+          f"{resid_legendre_direct[n]:.12f}        "
+          f"{abs(resid_legendre[n]-resid_legendre_direct[n]):.2e}")
+
+identity_gap = float(np.max(np.abs(resid_legendre - resid_legendre_direct)))
+print(f"\nмаксимальное расхождение двух путей по всем n: {identity_gap:.3e}")
+assert identity_gap < 1e-12, "тождество Парсеваля не выполнилось — ошибка в счёте"
+check_golden("legendre_identity_gap", identity_gap)
 
 check_golden("resid_legendre_9", resid_legendre[9])
 check_golden("resid_legendre_40", resid_legendre[40])
@@ -487,28 +537,57 @@ def monomial_rhs(n):
     return (1.0 - 2.0 ** (-k)) / (k + 1.0)
 
 
-print("  n   cond(G)        невязка (одночлены)   невязка (Лежандр)   расхождение")
-cond_list, resid_mono = [], []
+def monomial_poly(c):
+    """The polynomial sum_k c_k t^k as a callable (Horner via numpy)."""
+    return lambda t: np.polyval(c[::-1], np.asarray(t, dtype=float))
+
+
+# Three quantities, and keeping them apart is the whole point of this example:
+#   * resid_mono_direct  — how far the polynomial the solver ACTUALLY returned is
+#     from u. This is what a practitioner gets.
+#   * resid_mono_identity — what formula (4) of theory.md predicts, sqrt(1 - c.b).
+#     That identity holds only AT the exact solution of Gc = b, which is exactly
+#     what a near-singular solve fails to deliver, so the two part company.
+#   * resid_legendre — the true minimum over the same subspace.
+cond_list, resid_mono_direct, resid_mono_identity = [], [], []
 for n in range(1, NMAX + 1):
     G, b = hilbert_gram(n), monomial_rhs(n)
     cond_list.append(float(np.linalg.cond(G)))
     c = np.linalg.solve(G, b)
-    resid_mono.append(float(np.sqrt(max(1.0 - c @ b, 0.0))))
+    resid_mono_direct.append(residual_direct(monomial_poly(c), order=2 * n + 8))
+    resid_mono_identity.append(float(np.sqrt(max(1.0 - c @ b, 0.0))))
 cond_list = np.array(cond_list)
-resid_mono = np.array(resid_mono)
+resid_mono_direct = np.array(resid_mono_direct)
+resid_mono_identity = np.array(resid_mono_identity)
 
+print("  n   cond(G)       одночлены прямо   одночлены по тождеству   Лежандр (минимум)")
 for n in (3, 6, 9, 12, 15, 18, 25, 40):
     i = n - 1
-    print(f"{n:4d}   {cond_list[i]:.4e}   {resid_mono[i]:.10f}        "
-          f"{resid_legendre[n]:.10f}      {abs(resid_mono[i]-resid_legendre[n]):.2e}")
+    print(f"{n:4d}   {cond_list[i]:.4e}   {resid_mono_direct[i]:.10f}      "
+          f"{resid_mono_identity[i]:.10f}           {resid_legendre[n]:.10f}")
+
+# The computed polynomial cannot beat the true minimum over the same subspace:
+# if it ever does, the measurement is wrong, not the mathematics.
+assert np.all(resid_mono_direct >= resid_legendre[1:NMAX + 1] - 1e-9), \
+    "прямая невязка оказалась ниже минимума по подпространству — ошибка в измерении"
 
 check_golden("cond_hilbert_10", cond_list[9])
-check_golden("resid_monomial_18", resid_mono[17])
+check_golden("resid_monomial_direct_18", resid_mono_direct[17])
+check_golden("resid_monomial_identity_18", resid_mono_identity[17])
 
 n_break = next(n for n in range(1, NMAX + 1)
-               if abs(resid_mono[n - 1] - resid_legendre[n]) > 1e-3)
-print(f"\nпервое $n$, где одночленный путь расходится с ортогональным более чем на 1e-3: {n_break}")
-print(f"обусловленность матрицы Гильберта при этом $n$: {cond_list[n_break-1]:.3e}")
+               if abs(resid_mono_direct[n - 1] - resid_legendre[n]) > 1e-3)
+n_lie = next(n for n in range(1, NMAX + 1)
+             if abs(resid_mono_direct[n - 1] - resid_mono_identity[n - 1]) > 1e-3)
+print(f"\nпервое n, где одночленный путь теряет точность более чем на 1e-3: {n_break}")
+print(f"первое n, где тождество (4) расходится с прямым счётом более чем на 1e-3: {n_lie}")
+print(f"обусловленность матрицы Гильберта при n={n_break}: {cond_list[n_break-1]:.3e}")
+over_18 = 100 * (resid_mono_direct[17] - resid_legendre[18]) / resid_legendre[18]
+ratio_40 = resid_mono_direct[39] / resid_legendre[40]
+print(f"завышение невязки при n=18: {over_18:.2f} %")
+print(f"отношение невязок при n=40: {ratio_40:.4f}")
+check_golden("overshoot_18_percent", over_18)
+check_golden("ratio_40", ratio_40)
 
 # %% [markdown]
 # И система Хаара. Первый вейвлет Хаара на $[0,1]$ есть
@@ -540,39 +619,75 @@ print("коэффициенты Фурье сигнала по системе Х
 for name, c in haar_coefs:
     print(f"  <u, {name:9s}> = {c:+.12f}")
 
+nonzero = [(name, c) for name, c in haar_coefs if abs(c) > 1e-12]
 haar_energy = sum(c ** 2 for _, c in haar_coefs)
-haar_resid = float(np.sqrt(max(1.0 - haar_energy, 0.0)))
-print(f"\nсумма квадратов коэффициентов по Хаару (15 членов): {haar_energy:.12f}")
-print(f"невязка по Хаару: {haar_resid:.3e} — равенство Парсеваля исчерпано ОДНИМ членом")
-check_golden("haar_resid", haar_resid)
+print(f"\nненулевых коэффициентов: {len(nonzero)} — {nonzero}")
+print(f"сумма квадратов всех пятнадцати коэффициентов: {haar_energy:.12f}")
 
-# Reconstruction from the single nonzero coefficient, to make sure the claim
-# "u = -psi" is about the function and not only about the energy.
+# The residual after keeping the single nonzero term, measured directly rather
+# than through Parseval: the point of D03 applies here too.
 recon = -1.0 * haar_wavelet(GRID, 0, 0)
+haar_resid_direct = grid_norm(u_grid - recon, 2)
+haar_resid_identity = float(np.sqrt(max(1.0 - haar_energy, 0.0)))
+print(f"невязка одного члена, прямым счётом:   {haar_resid_direct:.3e}")
+print(f"невязка через равенство Парсеваля:     {haar_resid_identity:.3e}")
 print(f"max|u - (-psi)| на сетке: {float(np.max(np.abs(u_grid - recon))):.3e}")
+check_golden("haar_resid", haar_resid_direct)
+resid_haar_direct = max(haar_resid_direct, 1e-17)  # для логарифмической оси графика
 
 # %% [markdown]
-# **Сбылось, и с уточнением.** Пути совпадают до $n = 9$ (расхождение $10^{-6}$
-# и меньше), впервые расходятся более чем на $10^{-3}$ при $n = 11$, а при
-# $n = 18$ одночленный путь даёт невязку $0{,}2086$ против верной $0{,}1855$ —
-# завышение на $12{,}5\,\%$, то есть ошибка во второй значащей цифре; при
-# $n = 40$ завышение уже в $1{,}6$ раза. Обусловленность матрицы Гильберта при
-# $n = 10$ равна $5{,}2\cdot10^{14}$, то есть система неразрешима в двойной
-# точности; при больших $n$ само число обусловленности перестаёт быть
-# осмысленным — оно выходит на уровень $10^{18}$ и даже немонотонно (при
-# $n=15$ меньше, чем при $n=12$), потому что вычисляется тем же разложением,
-# которое уже развалилось.
+# **Сбылось, и уточнение оказалось важнее предсказания.**
+#
+# По Лежандру тождество $\lVert u-\varphi\rVert^2 = \lVert u\rVert^2 - \sum c_k^2$
+# выполняется до машинной точности: два независимых пути (равенство Парсеваля и
+# прямая квадратура) расходятся не более чем на $1{,}6\cdot10^{-14}$ по всем
+# $n \le 40$. Это и есть обещанная проверка тождества — раньше оно бралось
+# определением невязки и потому не проверялось вовсе.
+#
+# По одночленам путей стало три, и различать их обязательно:
+#
+# | $n$ | минимум (Лежандр) | получено на деле | обещает тождество |
+# |---|---|---|---|
+# | 9 | 0,2460938 | 0,2460938 | 0,2460951 |
+# | 12 | 0,2255859 | 0,2279881 | 0,2251504 |
+# | 18 | 0,1854706 | 0,2058032 | 0,2086384 |
+# | 40 | 0,1253707 | 0,2062208 | 0,2044184 |
+#
+# Средний столбец — честная невязка того многочлена, который вернул решатель;
+# правый — то, что предсказывает тождество $\sqrt{1-c^{\top}b}$, верное только в
+# точном решении системы. Они расходятся более чем на $10^{-3}$ уже с $n=11$, и
+# правый столбец при $n=12$ и $n=40$ оказывается **ниже** истинного минимума —
+# чего не может быть ни у какого элемента подпространства. Точность теряется с
+# $n=12$; при $n=18$ завышение составляет $11{,}0\,\%$, при $n=40$ — в $1{,}64$
+# раза.
+#
+# Обусловленность матрицы Гильберта при $n = 10$ равна $5{,}2\cdot10^{14}$:
+# правило «относительная погрешность решения порядка
+# $\mathrm{cond}\cdot\varepsilon$» даёт при машинном
+# $\varepsilon \approx 2{,}2\cdot10^{-16}$ погрешность около $0{,}12$, то есть от
+# коэффициентов не остаётся ни одной верной значащей цифры. При больших $n$ само
+# число обусловленности перестаёт быть осмысленным — оно выходит на уровень
+# $10^{18}$ и даже немонотонно (при $n=15$ меньше, чем при $n=12$), потому что
+# вычисляется тем же разложением, которое уже развалилось.
 #
 # Измеренный наклон невязки по Лежандру равен $-0{,}45$ — близко к
 # предсказанному $-1/2$, но не равен ему: на сороковом члене асимптотика ещё не
-# установилась. По Хаару невязка нулевая при одном ненулевом коэффициенте.
+# установилась. По Хаару ненулевой коэффициент **один**, и невязка после него
+# нулевая.
 #
-# Что из этого следует: **теорема о проекции говорит о подпространстве, а не о
-# базисе.** Невязка — свойство подпространства и одинакова у обоих полиномиальных
-# путей; различие в том, дойдёт ли счёт до ответа. Различие же между
-# полиномиальным и вейвлетным приближением — уже другого рода: там меняется само
-# подпространство, и выигрыш даёт совпадение устройства базиса с устройством
-# сигнала.
+# Два вывода, и второй из них я получил не предсказанием, а ошибкой.
+#
+# **Первый: теорема о проекции говорит о подпространстве, а не о базисе.**
+# Минимум один и тот же, различие лишь в том, дойдёт ли счёт до ответа.
+# Различие между полиномиальным и вейвлетным приближением — другого рода: там
+# меняется само подпространство, и выигрыш даёт совпадение устройства базиса с
+# устройством сигнала.
+#
+# **Второй: тождеством из теоремы нельзя мерить качество приближённого решения.**
+# Первая редакция этого примера считала невязку одночленного пути как
+# $\sqrt{1-c^{\top}b}$ — по тождеству, которое верно ровно в той точке, где
+# система решена точно, то есть ровно в том, что пример и опровергает. Величина,
+# которой проверяют разрушение посылки, не должна сама на эту посылку опираться.
 
 # %%
 fig, ax = plt.subplots(1, 2, figsize=(11, 3.8))
@@ -589,17 +704,18 @@ ax[0].set_title("обусловленность матрицы Грама")
 ax[0].legend(fontsize=8)
 ax[0].grid(alpha=0.3, which="both")
 
-ax[1].loglog(nn, resid_legendre[1:NMAX + 1], lw=1.8, label="Лежандр (ортонормированный)")
-ax[1].loglog(nn, resid_mono, "--", lw=1.8, label="одночлены (нормальные уравнения)")
-ax[1].loglog(nn, resid_legendre[1] * nn ** -0.5, ":", lw=1.2, color="gray",
-             label=r"наклон $n^{-1/2}$")
-ax[1].plot([2], [1e-16], "o", ms=8, color="crimson", zorder=5,
-           label="Хаар: 2 члена, невязка 0")
-ax[1].set_ylim(1e-17, 1.0)
-ax[1].set_xlabel("число членов")
+ax[1].loglog(nn, resid_legendre[1:NMAX + 1], lw=1.8,
+             label="Лежандр: минимум по подпространству")
+ax[1].loglog(nn, resid_mono_direct, "--", lw=1.8,
+             label="одночлены: что получено на деле")
+ax[1].loglog(nn, resid_mono_identity, "-.", lw=1.4, color="darkorange",
+             label=r"одночлены: что обещает $\sqrt{1-c^{\top}b}$")
+ax[1].plot([1], [resid_haar_direct], "o", ms=8, color="crimson", zorder=5,
+           label="Хаар: один коэффициент")
+ax[1].set_xlabel("степень многочлена $n$")
 ax[1].set_ylabel(r"$\|u-\varphi\|_2$")
-ax[1].set_title("невязка приближения сигнала со скачком")
-ax[1].legend(fontsize=8, loc="lower left")
+ax[1].set_title("невязка: минимум, достигнутое и обещанное")
+ax[1].legend(fontsize=7.5, loc="lower left")
 ax[1].grid(alpha=0.3, which="both")
 
 fig.tight_layout()
@@ -631,9 +747,7 @@ plt.show()
 f_on_legendre = -coefs  # f(e_k) = <e_k, -u> = -c_k
 
 partial_representer_norm = np.sqrt(np.cumsum(f_on_legendre ** 2))
-norm_f = 1.0  # = ||u||_2, computed in example 2 territory: u^2 = 1 a.e.
-print(f"||f|| = ||u||_2 = {grid_norm(u_grid, 2):.12f} (сеткой, точно для кусочно постоянной), замкнуто {norm_f}")
-check_golden("norm_f", grid_norm(u_grid, 2))
+norm_f = 1.0  # predicted by the Riesz isometry: ||f|| = ||y||_2 = ||u||_2 = 1
 
 print("\n  n   ||y_n||        ||f|| - ||y_n||   монотонно?")
 prev = -1.0
@@ -672,8 +786,9 @@ def legendre_combination_at(coef_vector, t):
 
 
 worst = 0.0
+sup_ratio = 0.0
 for _ in range(TRIALS_RIESZ):
-    a = rng.standard_normal(DEG + 1)
+    a = rng_riesz.standard_normal(DEG + 1)
     poly = lambda t, a=a: legendre_combination_at(a, t)
     # left-hand side: the functional by definition, exact for a polynomial
     left = gauss_integral(poly, 0.0, 0.5, order=DEG + 2)
@@ -682,8 +797,38 @@ for _ in range(TRIALS_RIESZ):
     # right-hand side: the theorem's formula through the closed-form coefficients
     by_repr = float(-(a[: DEG + 1] @ coefs[: DEG + 1]))
     worst = max(worst, abs(by_def - by_repr))
+    # ||f|| = sup |f(x)|/||x||: by Parseval ||x||_2 = ||a||_2 for this basis, so
+    # the ratio is computed without a second quadrature.
+    sup_ratio = max(sup_ratio, abs(by_def) / float(np.linalg.norm(a)))
 print(f"max|f(x) - <x,-u>| по {TRIALS_RIESZ} случайным многочленам степени {DEG}: {worst:.3e}")
 assert worst < 1e-10, "представление Рисса не выполнилось — ошибка в счёте или в формуле"
+
+# The Riesz isometry ||f|| = ||y|| is the claim of the example, so it gets
+# measured rather than assumed. On the subspace of polynomials of degree <= DEG
+# the supremum of |f(x)|/||x|| is attained at the partial representer itself, so
+# the maximiser is known and both sides can be computed by INDEPENDENT routes:
+# the numerator by exact quadrature from the definition of f, the denominator by
+# exact quadrature of ||x||_2.
+a_max = f_on_legendre[: DEG + 1]
+x_max = lambda t: legendre_combination_at(a_max, t)
+num = contrast((gauss_integral(x_max, 0.0, 0.5, order=DEG + 2),
+                gauss_integral(x_max, 0.5, 1.0, order=DEG + 2)))
+den = np.sqrt(gauss_integral(lambda t: x_max(t) ** 2, 0.0, 1.0, order=DEG + 2))
+attained = abs(num) / den
+best_possible = partial_representer_norm[DEG]
+
+print(f"\nнорма функционала, суженного на многочлены степени <= {DEG}:")
+print(f"  достигается на частичном представителе: |f(x)|/||x|| = {attained:.12f}")
+print(f"  она же как ||y_{DEG}|| через коэффициенты:            {best_possible:.12f}")
+print(f"  расхождение двух независимых путей:                {abs(attained-best_possible):.2e}")
+print(f"  супремум по {TRIALS_RIESZ} случайным направлениям:            {sup_ratio:.12f}")
+print(f"  предсказание теоремы Рисса для всего $L_2$:        ||f|| = {norm_f}")
+assert abs(attained - best_possible) < 1e-10, "два пути к норме функционала разошлись"
+assert sup_ratio <= best_possible + 1e-12, "случайное направление превысило точную грань"
+assert best_possible < norm_f, "частичная норма не может достичь ||f|| на конечной степени"
+check_golden("sup_ratio_random", sup_ratio)
+check_golden("best_possible_deg25", best_possible)
+check_golden("attained_deg25", attained)
 
 # %% [markdown]
 # Теперь неограниченный функционал. Он задан не на всём $l_2$, а на плотном
@@ -724,8 +869,20 @@ assert slope_g_near < slope_g_far < 1.5, "наклон должен расти �
 # неограниченного.** Частичные нормы представителя растут монотонно и снизу к
 # $\lVert f\rVert = 1$, никогда её не превышая, — это неравенство Бесселя в
 # действии; представление $f(x) = \langle x, -u\rangle$ выполнилось на трёхсот
-# случайных многочленах с точностью $10^{-10}$, причём две стороны равенства
+# случайных многочленах с точностью $10^{-14}$, причём две стороны равенства
 # посчитаны независимо.
+#
+# Изометрия Рисса $\lVert f\rVert = \lVert y\rVert$ тоже измерена, а не принята
+# на веру. На многочленах степени не выше 25 супремум $|f(x)|/\lVert x\rVert$
+# достигается на частичном представителе, и два независимых пути к нему —
+# прямая квадратура числителя и знаменателя против $\lVert y_{25}\rVert$ через
+# коэффициенты — дают $0{,}987917448138$ с расхождением $8\cdot10^{-16}$. Это
+# меньше единицы, и так и должно быть: на конечномерном подпространстве
+# супремум не достигает нормы функционала на всём $L_2$. Случайные направления
+# дают куда меньше ($0{,}599$): в 26-мерном пространстве случайный вектор почти
+# ортогонален фиксированному представителю, и слепой перебор нормы функционала
+# не находит — это отдельный урок о том, чем случайная проба отличается от
+# измерения.
 #
 # Оговорка про наклон: предсказанное значение $3/2$ на диапазоне $n$ от 5 до 200
 # **не достигается** — измеренный наклон $1{,}479$. Причина не в ошибке
@@ -789,8 +946,8 @@ plt.show()
 # |---|---|---|
 # | 1 | полнота — свойство метрики, а не множества | одно семейство сходится в $L_1$ и $L_2$ и не фундаментально в $C$; расстояния совпали с замкнутыми формами |
 # | 2 | норма порождена скалярным произведением только при $p=2$ | дефект $2-4\cdot2^{-2/p}$ обращается в ноль ровно при $p=2$, в том числе на случайных парах |
-# | 3 | теорема о проекции говорит о подпространстве, а не о базисе | невязка одна и та же у двух базисов, пока счёт возможен; матрица Гильберта делает его невозможным с $n\approx 10$ |
-# | 4 | представимость равносильна ограниченности | частичные нормы растут снизу к $\|f\|$ у ограниченного и расходятся у неограниченного |
+# | 3 | теорема о проекции говорит о подпространстве, а не о базисе | невязка одна и та же у двух базисов, пока счёт возможен; матрица Гильберта делает его невозможным с $n = 12$ |
+# | 4 | представимость равносильна ограниченности | частичные нормы растут снизу к $\|f\|$ у ограниченного и расходятся у неограниченного; изометрия Рисса измерена двумя путями |
 #
 # Все числа, попавшие в `theory.md` и `slides.md`, напечатаны выше; замкнутые
 # формы всюду, где они есть, сверены с независимым счётом (квадратура либо
