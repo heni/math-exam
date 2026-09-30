@@ -633,8 +633,8 @@ haar_energy = sum(c ** 2 for _, c in haar_coefs)
 print(f"\nненулевых коэффициентов: {len(nonzero)} — {nonzero}")
 print(f"сумма квадратов всех {len(haar_coefs)} коэффициентов: {haar_energy:.12f}")
 
-# The residual after keeping the single nonzero term, measured directly rather
-# than through Parseval: the point of D03 applies here too.
+# Residual of the single nonzero term, measured directly rather than through
+# Parseval: an identity must not be used to check itself.
 recon = -1.0 * haar_wavelet(GRID, 0, 0)
 haar_resid_direct = grid_norm(u_grid - recon, 2)
 haar_resid_identity = float(np.sqrt(max(1.0 - haar_energy, 0.0)))
