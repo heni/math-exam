@@ -88,16 +88,16 @@ fi
 
 echo "== 6. Пайплайн-файлы не должны быть в git =="
 if [ -d .git ]; then
-  tracked=$(git ls-files -- CLAUDE.md TODO.md AI.md backlog.md 'AI/*' 2>/dev/null)
+  tracked=$(git ls-files -- CLAUDE.md TODO.md AI.md backlog.md 'AI/*' '.claude/*' 2>/dev/null)
   if [ -n "$tracked" ]; then bad "в git попали пайплайн-файлы:"; echo "$tracked" | sed 's/^/      /'
   else note "чисто"; fi
-  untracked=$(git status --porcelain --untracked-files=all 2>/dev/null | grep -E '^\?\? (CLAUDE\.md|TODO\.md|AI\.md|backlog\.md|AI/)' || true)
+  untracked=$(git status --porcelain --untracked-files=all 2>/dev/null | grep -E '^\?\? (CLAUDE\.md|TODO\.md|AI\.md|backlog\.md|AI/|\.claude/)' || true)
   [ -n "$untracked" ] && bad "пайплайн-файлы видны как untracked — проверить .gitignore"
 else
   note "git не инициализирован — пропуск"
 fi
 
-echo "== 7. Git-версируемые файлы не ссылаются на локальные каталоги =="
+echo "== 7. Git-версируемые файлы не ссылаются на локальное и на пайплайн-файлы =="
 # Правило аудиторий: читатель репозитория не видит deps/ и presexmpl/, значит
 # путей внутрь них в закоммиченных файлах быть не должно. На книгу ссылаться
 # можно и нужно — но библиографической записью: номером [N] из docs/sources.md,
@@ -111,7 +111,22 @@ if [ -d .git ]; then
     bad "ссылки на локальные каталоги в git-версируемых файлах:"
     echo "$leak" | sed 's/^/      /'
   else
-    note "чисто"
+    note "каталоги: чисто"
+  fi
+  # То же правило про git-ignored ПАЙПЛАЙН-ФАЙЛЫ: читатель репозитория их не
+  # видит, значит ссылаться на них из закоммиченного нельзя. Пункт 6 проверяет,
+  # что они не попали в индекс; здесь — что на них не ссылаются. Ловушка
+  # сработала на комментарии в tools/numbers.sh, который цитировал правило по
+  # имени файла правил. Шаблон требует явного упоминания файла, а не подстроки:
+  # иначе base64 внутри .ipynb даёт ложное срабатывание.
+  refs=$(git ls-files -z 2>/dev/null \
+         | xargs -0 grep -lnE '(^|[^A-Za-z0-9_/-])(CLAUDE|TODO|backlog|AI)\.md([^A-Za-z0-9]|$)|(^|[ `"'"'"'(])AI/|(^|[ `"'"'"'(])\.claude/' 2>/dev/null \
+         | grep -vE '^(\.gitignore|tools/check\.sh)$' || true)
+  if [ -n "$refs" ]; then
+    bad "ссылки на git-ignored пайплайн-файлы в git-версируемых файлах:"
+    echo "$refs" | sed 's/^/      /'
+  else
+    note "пайплайн-файлы: чисто"
   fi
 else
   note "git не инициализирован — пропуск"
