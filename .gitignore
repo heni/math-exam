@@ -6,6 +6,7 @@ AI.md
 AI/
 backlog.md
 .claude/
+.kimi-code/local.toml
 
 # Сборочный мусор
 *.aux
