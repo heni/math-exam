@@ -39,10 +39,10 @@ $\overline X_N \pm z_{(1+\gamma)/2}\,\widehat\sigma_N/\sqrt N$ держит за
 \begin{definition}\label{def:sample}
 Пусть $\xi_1, \xi_2, \dots, \xi_N$ — независимые одинаково распределённые
 случайные величины с распределением $P_\theta$, $\theta \in \Theta$ (англ.
-*random sample*). Вектор $\xi = (\xi_1, \dots, \xi_N)$ называется выборкой,
+\emph{random sample}). Вектор $\xi = (\xi_1, \dots, \xi_N)$ называется выборкой,
 $N$ — объёмом выборки; любая борелевская функция $T(\xi)$ называется
-статистикой (англ. *statistic*), а статистика $\widehat\theta(\xi)$,
-предназначенная для приближения $\theta$, — оценкой (англ. *estimator*).
+статистикой (англ. \emph{statistic}), а статистика $\widehat\theta(\xi)$,
+предназначенная для приближения $\theta$, — оценкой (англ. \emph{estimator}).
 \end{definition}
 
 Основные примеры оценок — выборочное среднее $\overline X_N = \frac1N\sum_k
@@ -61,14 +61,14 @@ $N$ — объёмом выборки; любая борелевская фун�
 вытекают три стандартных свойства.
 
 \begin{definition}\label{def:unbiased}
-Оценка $\widehat\theta$ называется несмещённой (англ. *unbiased*), если
+Оценка $\widehat\theta$ называется несмещённой (англ. \emph{unbiased}), если
 $\E_\theta \widehat\theta = \theta$ при всех $\theta \in \Theta$;
 асимптотически несмещённой, если $\E_\theta \widehat\theta \to \theta$ при
 $N \to \infty$.
 \end{definition}
 
 \begin{definition}\label{def:consistent}
-Оценка $\widehat\theta_N$ называется состоятельной (англ. *consistent*), если
+Оценка $\widehat\theta_N$ называется состоятельной (англ. \emph{consistent}), если
 $\widehat\theta_N \xrightarrow{\Prob} \theta$ при $N \to \infty$ при всех
 $\theta \in \Theta$. Это статистическое имя сходимости по вероятности из
 вопроса 12.
@@ -76,7 +76,7 @@ $\theta \in \Theta$. Это статистическое имя сходимос
 
 \begin{definition}\label{def:efficient}
 Несмещённая оценка $\widehat\theta^{\,*}$ называется эффективной (англ.
-*efficient*, наилучшей несмещённой), если
+\emph{efficient}, наилучшей несмещённой), если
 $\Var_\theta \widehat\theta^{\,*} = \inf_{\widehat\theta: \E_\theta
 \widehat\theta = \theta} \Var_\theta \widehat\theta$ при всех
 $\theta \in \Theta$. Если отношение дисперсии эффективной оценки к дисперсии
@@ -103,9 +103,9 @@ I_N(\theta) = \Var_\theta\Bigl(\frac{\partial}{\partial\theta} \ln
 p_\theta(\xi)\Bigr) = -\E_\theta\Bigl(\frac{\partial^2}{\partial\theta^2}
 \ln p_\theta(\xi)\Bigr)
 \end{equation}
-называется информацией Фишера (англ. *Fisher information*), выборки объёма $N$;
+называется информацией Фишера (англ. \emph{Fisher information}), выборки объёма $N$;
 случайную величину $\frac{\partial}{\partial\theta}\ln p_\theta(\xi)$
-называют вкладом (англ. *score*).
+называют вкладом (англ. \emph{score}).
 \end{definition}
 
 Равенство двух форм в \eqref{eq:fisher} — тождество, оно доказано ниже в
@@ -229,10 +229,10 @@ $1/N^2$ — быстрее любой границы $c(\theta)/N$. Без ди�
 Пусть выполнены условия регулярности теоремы \ref{thm:rao-cramer} плюс
 условия второго порядка (существование и ограниченность третьих
 производных $\ln p_\theta$, единственность решения уравнения правдоподобия).
-Тогда ОМП $\widehat\theta^{\,\mathrm{МП}}$ состоятельна, асимптотически
+Тогда ОМП $\widehat\theta^{\,\text{МП}}$ состоятельна, асимптотически
 эффективна и
 \begin{equation}\label{eq:mle-an}
-\sqrt{N}\,\bigl(\widehat\theta^{\,\mathrm{МП}} - \theta\bigr)
+\sqrt{N}\,\bigl(\widehat\theta^{\,\text{МП}} - \theta\bigr)
 \ \xrightarrow{d}\ \mathcal N\bigl(0,\; 1/i(\theta)\bigr),
 \qquad i(\theta) = \Var_\theta \tfrac{\partial}{\partial\theta}\ln
 g(\xi_1;\theta),
@@ -247,14 +247,14 @@ g(\xi_1;\theta),
 раздел \ref{sec:mle-an-proof}. Следствие для интервалов: заменяя в
 \eqref{eq:mle-an} неизвестную $i(\theta)$ состоятельной оценкой и применяя
 лемму Слуцкого, получаем асимптотический доверительный интервал
-$\widehat\theta^{\,\mathrm{МП}} \pm z_{(1+\gamma)/2}\,/\sqrt{N\,
+$\widehat\theta^{\,\text{МП}} \pm z_{(1+\gamma)/2}\,/\sqrt{N\,
 \widehat i_N}$ — это и есть метод построения асимптотических интервалов из
 следующего раздела в общей форме.
 
 # Доверительное оценивание
 
 \begin{notation}
-Далее $\gamma \in (0,1)$ — уровень доверия (англ. *confidence level*); буква
+Далее $\gamma \in (0,1)$ — уровень доверия (англ. \emph{confidence level}); буква
 $\alpha$ зарезервирована за уровнем значимости и в доверительном оценивании
 встречается только как $\alpha = 1 - \gamma$. Символом $z_\beta$ обозначаем
 $\beta$-квантиль распределения $\mathcal N(0,1)$ (соглашение вопроса 12);
@@ -266,7 +266,7 @@ $\beta$-квантили распределений хи-квадрат, Сть�
 
 \begin{remark}\label{rem:quantile-convention}
 Квантиль $z_\beta$ — точка, слева от которой масса $\beta$. У [06] (гл. 21 и
-27) табулированы «верхние $\alpha$-пределы» — точки, **справа** от которых
+27) табулированы «верхние $\alpha$-пределы» — точки, \textbf{справа} от которых
 масса $\alpha$; это наши квантили с $\beta = 1 - \alpha$, и переход между
 соглашениями формальный: $\chi^2_{\alpha;\,k}$ у [06] есть $\chi^2_{1-\alpha;\,k}$
 здесь. У [24] «надёжность $\gamma$» — это уровень доверия. Объём выборки мы
@@ -460,23 +460,23 @@ $T = \bigl((\overline X_N - a)\sqrt N/\sigma\bigr)\big/\sqrt{s_N^2/\sigma^2}$.
 $\beta_{\pm} = (1 \pm \gamma)/2$. Тогда точные доверительные интервалы уровня
 $\gamma$:
 
-1. **среднее $a$, $\sigma$ известно** (центральная статистика — из п. 3
+1. \textbf{среднее $a$, $\sigma$ известно} (центральная статистика — из п. 3
    теоремы \ref{thm:normal-sample}):
    $$
    \overline X_N \ \pm\ z_{\beta_{+}}\,\frac{\sigma}{\sqrt N};
    $$
-2. **среднее $a$, $\sigma$ неизвестно** (статистика \eqref{eq:student}):
+2. \textbf{среднее $a$, $\sigma$ неизвестно} (статистика \eqref{eq:student}):
    $$
    \overline X_N \ \pm\ t_{\beta_{+};\,N-1}\,\frac{s_N}{\sqrt N};
    $$
-3. **дисперсия $\sigma^2$, $a$ известно**: с $\widehat\sigma_a^2 = \frac1N
+3. \textbf{дисперсия $\sigma^2$, $a$ известно}: с $\widehat\sigma_a^2 = \frac1N
    \sum_k (\xi_k - a)^2$ величина $N\widehat\sigma_a^2/\sigma^2 \sim
    \chi^2_N$, откуда
    $$
    \Bigl( \tfrac{N\widehat\sigma_a^2}{\chi^2_{\beta_{+};\,N}},
          \tfrac{N\widehat\sigma_a^2}{\chi^2_{\beta_{-};\,N}} \Bigr);
    $$
-4. **дисперсия $\sigma^2$, $a$ неизвестно** (центральная статистика — из п. 2
+4. \textbf{дисперсия $\sigma^2$, $a$ неизвестно} (центральная статистика — из п. 2
    теоремы \ref{thm:normal-sample}):
    $$
    \Bigl( \tfrac{(N-1)\,s_N^2}{\chi^2_{\beta_{+};\,N-1}},
@@ -579,7 +579,7 @@ $$
 
 \begin{definition}\label{def:hypothesis}
 Суждение о неизвестном распределении наблюдения $\xi$ называется статистической
-гипотезой (англ. *statistical hypothesis*). В параметрической модели
+гипотезой (англ. \emph{statistical hypothesis}). В параметрической модели
 $\{P_\theta, \theta \in \Theta\}$ гипотеза $H_0: \theta \in \Theta_0$
 называется простой, если $\Theta_0$ — одна точка (гипотеза однозначно
 восстанавливает распределение), и сложной в противном случае; гипотеза
@@ -589,23 +589,23 @@ $H_1: \theta \in \Theta_1$ с $\Theta_0 \cap \Theta_1 = \varnothing$ —
 \end{definition}
 
 \begin{definition}\label{def:test}
-Критерием (англ. *test*) называется измеримое множество $S$ выборочного
+Критерием (англ. \emph{test}) называется измеримое множество $S$ выборочного
 пространства: наблюдение $x \in S$ влечёт отклонение $H_0$ в пользу $H_1$,
 $x \notin S$ — неотклонение. Критерий — решающее правило из вопроса 03,
-действие два. Ошибкой первого рода (англ. *type I error*) называется
-отклонение верной $H_0$; ошибкой второго рода (англ. *type II error*) —
+действие два. Ошибкой первого рода (англ. \emph{type I error}) называется
+отклонение верной $H_0$; ошибкой второго рода (англ. \emph{type II error}) —
 неотклонение неверной $H_0$ ([06], гл. 22, с. 541–543).
 \end{definition}
 
 \begin{definition}\label{def:level-power}
 Функция $\beta(\theta, S) = \Prob_\theta(\xi \in S)$ называется функцией
-мощности критерия $S$ (англ. *power function*); её значения $\beta(\theta,
+мощности критерия $S$ (англ. \emph{power function}); её значения $\beta(\theta,
 S)$ при $\theta \in \Theta_1$ — мощностью, а
 \begin{equation}\label{eq:size}
 \alpha(S) = \sup_{\theta \in \Theta_0} \beta(\theta, S)
 \end{equation}
 — размером критерия. Критерий имеет уровень значимости $\alpha$ (англ.
-*significance level*), если $\alpha(S) \le \alpha$ ([07], определения 15.4,
+\emph{significance level}), если $\alpha(S) \le \alpha$ ([07], определения 15.4,
 15.5, 15.6, с. 142).
 \end{definition}
 
@@ -616,7 +616,7 @@ $0{,}01$), а в этом классе ищут критерий с максим
 
 \begin{definition}\label{def:ump}
 Критерий $S$ уровня значимости $\varepsilon$ называется равномерно наиболее
-мощным (р.н.м.к., англ. *uniformly most powerful test*), если
+мощным (р.н.м.к., англ. \emph{uniformly most powerful test}), если
 $\alpha(S) \le \varepsilon$ и $\beta(\theta, S) \ge \beta(\theta, R)$ при
 всех $\theta \in \Theta_1$ для любого другого критерия $R$ уровня
 $\varepsilon$ ([07], определение 15.10, с. 144).
@@ -624,7 +624,7 @@ $\varepsilon$ ([07], определение 15.10, с. 144).
 
 \begin{definition}\label{def:pvalue}
 Если критерий строится по статистике $T$ большим значениям ($S = \{T \ge
-c\}$), то p-value (англ. *p-value*) наблюдения $x$ — масса распределения
+c\}$), то p-value (англ. \emph{p-value}) наблюдения $x$ — масса распределения
 $T$ при $\theta_0$ на хвосте $[T(x), +\infty)$: $p = \Prob_{\theta_0}(T \ge
 T(x))$ ([06], с. 530–532). Гипотезу с уровнем $\alpha$ отклоняют ровно тогда,
 когда $p \le \alpha$; p-value — наименьший уровень, при котором наблюдение
@@ -720,7 +720,7 @@ $\psi \in \{0,1\}$ это обычный критерий, а внутрення
 \begin{definition}\label{def:mlr}
 Доминируемое семейство $\{P_\theta, \theta \in \Theta \subseteq \R\}$ с
 плотностями $p_\theta$ имеет монотонное отношение правдоподобия по статистике
-$T(\xi)$ (англ. *monotone likelihood ratio*), если для любых $\theta_1 <
+$T(\xi)$ (англ. \emph{monotone likelihood ratio}), если для любых $\theta_1 <
 \theta_2$ отношение $p_{\theta_2}(x)/p_{\theta_1}(x) =
 \psi_{\theta_1,\theta_2}(T(x))$, где $\psi$ не убывает (монотонность одна и
 та же для всех пар) ([07], определение 15.12, с. 147). При этом $T$ —
@@ -820,21 +820,21 @@ $c_1 \approx N\theta_0 + z_{1-\varepsilon}\sqrt{N\theta_0(1-\theta_0)}$.
 \begin{theorem}[критерии нормальной модели]\label{thm:normal-tests}
 Пусть $\xi_1, \dots, \xi_N$ — выборка из $\mathcal N(a, \sigma^2)$.
 
-1. **$H_0: a = a_0$, $\sigma$ известно**: статистика $U =
+1. \textbf{$H_0: a = a_0$, $\sigma$ известно}: статистика $U =
    \sqrt N\,(\overline X_N - a_0)/\sigma \sim \mathcal N(0,1)$ при $H_0$;
    двусторонняя критическая область $\abs{U} \ge z_{\beta_{+}}$;
    односторонняя $U \ge z_{1-\alpha}$ для $H_1: a > a_0$.
-2. **$H_0: a = a_0$, $\sigma$ неизвестно (критерий Стьюдента)**: $T =
+2. \textbf{$H_0: a = a_0$, $\sigma$ неизвестно (критерий Стьюдента)}: $T =
    \sqrt N\,(\overline X_N - a_0)/s_N \sim t_{N-1}$ при $H_0$ (следствие
    \ref{cor:student}); область $\abs{T} \ge t_{\beta_{+};\,N-1}$.
-3. **$H_0: \sigma^2 = \sigma_0^2$**: $\chi^2 = (N-1)s_N^2/\sigma_0^2 \sim
+3. \textbf{$H_0: \sigma^2 = \sigma_0^2$}: $\chi^2 = (N-1)s_N^2/\sigma_0^2 \sim
    \chi^2_{N-1}$ при $H_0$; область двусторонняя $\chi^2 \notin
    \bigl[\chi^2_{\alpha/2;\,N-1},\ \chi^2_{\beta_{+};\,N-1}\bigr]$.
-4. **Две выборки, $H_0: a_1 = a_2$ при равных неизвестных дисперсиях**:
+4. \textbf{Две выборки, $H_0: a_1 = a_2$ при равных неизвестных дисперсиях}:
    $T = (\overline X_N - \overline Y_M)\big/\bigl(s_{\text{обш}}
    \sqrt{1/N + 1/M}\bigr) \sim t_{N+M-2}$ ([06], теорема 23.3.1);
    область $\abs{T} \ge t_{\beta_{+};\,N+M-2}$.
-5. **$H_0: \sigma_1^2 = \sigma_2^2$ (критерий Фишера)**: $F =
+5. \textbf{$H_0: \sigma_1^2 = \sigma_2^2$ (критерий Фишера)}: $F =
    s_{1N}^2/s_{2M}^2 \sim F_{N-1,\,M-1}$ при $H_0$; область $F \notin
    \bigl[F_{\alpha/2;\,M-1,\,N-1}\,s\text{-границы}\bigr]$ — эквивалентно
    отношению дисперсий вне интервала предложения \ref{thm:two-sample}.
@@ -978,7 +978,7 @@ $$
 
 \begin{problem}\label{prob:shiryaev}
 Пусть $\xi_1, \dots, \xi_N$ — выборка из $\mathcal N(m, \sigma_0^2)$ с
-**известной** дисперсией $\sigma_0^2$. Найти информацию Фишера, границу
+\textbf{известной} дисперсией $\sigma_0^2$. Найти информацию Фишера, границу
 Рао — Крамера и доверительный интервал для $m$; показать, что $\overline X_N$
 эффективна ([17], гл. II §13, задача 32, с. 173–174).
 \end{problem}
@@ -1034,6 +1034,7 @@ $\overline X_N \pm z_{(1+\gamma)/2}\,\sigma_0/\sqrt N$.
 
 ## Полное доказательство теоремы Пирсона {#sec:pearson-proof}
 
+\begin{proof}
 Воспроизводим [06], с. 615–623, в обозначениях конспекта. Пусть $H_0$ верна,
 $p_j = F(X_j)$, $\nu_j$ — частоты классов, $r \ge 2$.
 
