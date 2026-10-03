@@ -853,11 +853,11 @@ $$ \overline\xi=\frac1N\sum_{i=1}^{N}\xi^{(i)},\qquad
 
 \begin{proposition}[оптимальность первых главных компонент]
 Пусть $\Gamma=Q\Lambda Q\T$ — спектральное разложение ковариационной матрицы,
-$\lambda_1\ge\dots\ge\lambda_n\ge0$, и пусть $L$ — линейное подпространство
-$\R^n$ размерности $k$, $\Pi_L$ — ортогональный
+$\lambda_1\ge\dots\ge\lambda_n\ge0$, и пусть $\mathcal L$ — линейное подпространство
+$\R^n$ размерности $k$, $\Pi_{\mathcal L}$ — ортогональный
 проектор на него. Тогда
-$$ \max_{\dim L=k}\E\norm{\Pi_L(\xi-a)}^2=\lambda_1+\dots+\lambda_k, $$
-и максимум достигается на $L=\operatorname{span}(q_1,\dots,q_k)$.
+$$ \max_{\dim \mathcal L=k}\E\norm{\Pi_{\mathcal L}(\xi-a)}^2=\lambda_1+\dots+\lambda_k, $$
+и максимум достигается на $\mathcal L=\operatorname{span}(q_1,\dots,q_k)$.
 \end{proposition}
 
 . . .
