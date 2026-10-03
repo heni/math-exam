@@ -88,7 +88,7 @@ fi
 
 echo "== 6. Пайплайн-файлы не должны быть в git =="
 if [ -d .git ]; then
-  tracked=$(git ls-files -- CLAUDE.md TODO.md AI.md backlog.md 'AI/*' '.claude/*' 2>/dev/null)  # gate-pattern
+  tracked=$(git ls-files -- AGENTS.md TODO.md AI.md backlog.md 'AI/*' '.claude/*' 2>/dev/null)  # gate-pattern
   if [ -n "$tracked" ]; then bad "в git попали пайплайн-файлы:"; echo "$tracked" | sed 's/^/      /'
   else note "чисто"; fi
   untracked=$(git status --porcelain --untracked-files=all 2>/dev/null | grep -E '^\?\? (CLAUDE\.md|TODO\.md|AI\.md|backlog\.md|AI/|\.claude/)' || true)  # gate-pattern
@@ -153,7 +153,7 @@ if [ -d .git ]; then
   # работа, поэтому строка-путь пропускается, а комментарий в нём проверяется,
   # как любой другой. Режется по первому «#», а не по наличию «#» в строке: у
   # строки-пути бывает хвостовой комментарий.
-  pat='(^|[^A-Za-z0-9_-])(CLAUDE|TODO|backlog|AI)\.md([^A-Za-z0-9]|$)|(^|[^A-Za-z0-9_-])AI/|\.claude/'  # gate-pattern
+  pat='(^|[^A-Za-z0-9_-])(AGENTS|TODO|backlog|AI)\.md([^A-Za-z0-9]|$)|(^|[^A-Za-z0-9_-])AI/|\.claude/'  # gate-pattern
   refs=$(git ls-files -z 2>/dev/null \
          | grep -zv '^\.gitignore$' \
          | xargs -0 grep -nIE "$pat" 2>/dev/null \
