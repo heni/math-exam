@@ -21,9 +21,9 @@ FIGDIR = "figures"
 # bytes on every rebuild and `git diff` stops telling content from clock.
 SAVE_KW = {"metadata": {"CreationDate": None}}
 
-# Golden-пины: сид И ожидаемый выход зафиксированы константами. Без них
-# «воспроизводимость» проверяется согласованностью прогона с самим собой, что
-# ничего не значит. Расхождение роняет сборку ноутбука, то есть работает как гейт.
+# Golden pins: the seed and the expected outputs are fixed constants. Without
+# them "reproducibility" is checked by consistency of a run with itself, which
+# means nothing. A mismatch fails the notebook build, so it works as a gate.
 GOLDEN = {
     # "имя_величины": ожидаемое_значение,
 }
