@@ -24,7 +24,7 @@ $$\text{сквозной пример: квадратичная } \varphi(x) = \
 ## Определения
 
 \begin{definition}
-$f$ \textbf{гладкая с константой $L$}, если $\norm{\nabla f(y) - \nabla f(x)} \le L \norm{y - x}$; тогда $f$ мажорирована квадратичной формой: $f(y) \le f(x) + \scal{\nabla f(x)}{y-x} + \frac{L}{2}\norm{y-x}^2$ (для выпуклой $f$ — эквивалентность в обе стороны, prop:equiv в theory.md).
+$f$ \textbf{гладкая с константой $L$}, если $\norm{\nabla f(y) - \nabla f(x)} \le L \norm{y - x}$; тогда $f$ мажорирована квадратичной формой: $f(y) \le f(x) + \scal{\nabla f(x)}{y-x} + \frac{L}{2}\norm{y-x}^2$ (для выпуклой $f$ — эквивалентность в обе стороны).
 \end{definition}
 
 \begin{definition}
