@@ -1748,8 +1748,9 @@ $f(y) \ge f(x^*) = f(x^*) + \scal{0}{y - x^*}$, то есть $0$ — субгр
 Метод: субградиентный спуск $x^{k+1} = x^k - \gamma_k g^k$, $g^k \in
 \partial f(x^k)$. Сходимость медленнее градиентного. Пусть $f$ выпукла
 и $L_0$-липшицева ($\norm{g} \le L_0$ для $g \in \partial f$),
-$\norm{x^0 - x^*} \le R$. Из $\scal{g^k}{x^k - x^*} \ge f(x^k) - f^*$
-(свойство (а) с $y = x^*$) и $\norm{g^k} \le L_0$ телескопирование
+$\norm{x^0 - x^*} \le R$. Из определения субградиента \eqref{eq:subgrad} с
+$y = x^*$: $\scal{g^k}{x^k - x^*} \ge f(x^k) - f^*$,
+и $\norm{g^k} \le L_0$; телескопирование
 $$
 \norm{x^{k+1} - x^*}^2 \le \norm{x^k - x^*}^2 - 2 \gamma_k \bigl(f(x^k) - f^*\bigr) + \gamma_k^2 L_0^2
 $$

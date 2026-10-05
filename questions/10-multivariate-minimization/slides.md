@@ -63,7 +63,9 @@ $$x^{k+1} = x^k - \gamma_k \nabla f(x^k), \qquad \gamma_k = \tfrac1L$$
 \textbf{(б) Выпуклый случай.} $f$ выпукла. Тогда для усреднённой точки
 $\bar x^N = \frac1N \sum_{k=1}^{N} x^k$ верно $f\bigl(\bar x^N\bigr) - f^* \le \frac{L R^2}{2N}$.
 
-\textbf{(в) Сильно выпуклый случай.} $f$ $\mu$-сильно выпукла. Тогда $f(x^N) - f^* \le \frac{L R^2}{2} \min\bigl\{ \frac{1}{N}, (1 - \frac{\mu}{L})^{N} \bigr\}$.
+\textbf{(в) Сильно выпуклый случай.} $f$ $\mu$-сильно выпукла. Тогда
+$$f(x^N) - f^* \le \frac{L R^2}{2} \min\Bigl\{ \frac{1}{N},\, \Bigl(1 - \frac{\mu}{L}\Bigr)^{N} \Bigr\}, \qquad
+\norm{x^N - x^*} \le R \Bigl(1 - \frac{\mu}{L}\Bigr)^{N/2} .$$
 \end{theorem}
 
 ## Где ломается
@@ -195,7 +197,8 @@ $$\norm{\Gamma_0 \nabla f(x^0)} \le \eta, \qquad
 h := K \eta \le \tfrac12 .$$
 Тогда при $r \ge r_0 = \frac{1 - \sqrt{1 - 2h}}{h}\, \eta$ (при $h = 1/2$ читается $r_0 = 2\eta$) в $\Omega$ существует решение $x^*$ уравнения $\nabla f(x) = 0$, к которому сходится метод Ньютона, причём
 $$\norm{x^k - x^*} \le \frac{1}{2^k}\, (2h)^{2^k} \frac{\eta}{h} .$$
-Решение единственно в открытом шаре радиуса $r_1 = \frac{1 + \sqrt{1-2h}}{h}\eta$.
+Решение единственно в открытом шаре радиуса $r_1 = \frac{1 + \sqrt{1-2h}}{h}\eta$. Для модифицированного процесса (гессиан заморожен: $x^{k+1} = x^k - \Gamma_0 \nabla f(x^k)$) при $h < 1/2$
+$$\norm{x'^k - x^*} \le \frac{\eta}{h} \bigl(1 - \sqrt{1 - 2h}\bigr)^{k+1} .$$
 \end{theorem}
 
 # Условная оптимизация
