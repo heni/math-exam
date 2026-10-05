@@ -199,8 +199,10 @@ $\scal{\nabla^2 f(x)(y-x)}{y-x} \ge \mu \norm{y-x}^2$ в каждой точке
 к паре $(y, x)$ и $(x, y)$ с последующим сложением. Обратно, для гладкой
 $f$ по формуле Тейлора
 $$
-f(y) - f(x) - \scal{\nabla f(x)}{y-x} = \int_0^1 \scal{\nabla f\bigl(x + t(y-x)\bigr) - \nabla f(x)}{y - x}\,dt
-\ge \int_0^1 \mu t \norm{y-x}^2\,dt = \frac{\mu}{2}\norm{y-x}^2,
+\begin{aligned}
+f(y) - f(x) - \scal{\nabla f(x)}{y-x} &= \int_0^1 \scal{\nabla f\bigl(x + t(y-x)\bigr) - \nabla f(x)}{y - x}\,dt \\
+&\ge \int_0^1 \mu t \norm{y-x}^2\,dt = \frac{\mu}{2}\norm{y-x}^2,
+\end{aligned}
 $$
 где неравенство — \eqref{eq:mono} для пары $x$ и $x + t(y-x)$, делённое
 на $t$ (выпуклость здесь не нужна); это и есть \eqref{eq:strong}.
