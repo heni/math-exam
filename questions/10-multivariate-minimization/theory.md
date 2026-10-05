@@ -525,8 +525,8 @@ $\abs{1 - \gamma \mu}$; евклидова норма даёт $q(\gamma)$ ас�
 $N \approx \frac{\varkappa}{2} \ln \frac{R}{\varepsilon}$ итераций:
 $q^* = 1 - \frac{2}{\varkappa + 1} \le e^{-2/(\varkappa+1)}$, и
 $(q^*)^N \le \varepsilon$ при $N \ge \frac{\varkappa + 1}{2} \ln
-\frac{1}{\varepsilon}$. При $\varkappa = 10^3$ это сотни итераций — против
-единиц у методов раздела \ref{sec:cheb}.
+\frac{1}{\varepsilon}$. При $\varkappa = 10^3$ это тысячи итераций — против
+сотен у методов раздела \ref{sec:cheb}.
 \textbf{(2) Овражная структура.} При $\varkappa \gg 1$ линии уровня $f$
 вытянуты вдоль собственных направлений $B$ с малыми собственными
 значениями; траектория спуска зигзагом пересекает овраг, и каждый шаг
