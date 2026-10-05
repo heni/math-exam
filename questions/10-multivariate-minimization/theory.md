@@ -25,10 +25,14 @@ $$
 становится плохо обусловленным, и именно здесь методы минимизации
 начинают различаться по скорости на порядки.
 
-**Машинное обучение.** Обучение — это минимизация эмпирического риска
-$\frac1N \sum_{i=1}^N \ell(h_w(x_i), y_i)$ по параметрам $w$ модели; обучение
-нейронной сети — минимизация этой функции в пространстве размерности в
-миллионы. Метод, которым это делается на практике (стохастический
+**Машинное обучение.** Обучение — это минимизация по параметрам $w$ модели
+эмпирического риска — средней ошибки $\ell$ модели $h_w$ на выборке
+$(x_i, y_i)$:
+$$
+\frac1N \sum_{i=1}^N \ell\bigl(h_w(x_i), y_i\bigr) ;
+$$
+обучение нейронной сети — минимизация этой функции в пространстве
+размерности в миллионы. Метод, которым это делается на практике (стохастический
 градиентный спуск с импульсом), есть пересборка методов, разобранных в этом
 конспекте, — см. расширенную часть и вопрос 02 (ML и обратные задачи).
 
@@ -110,11 +114,14 @@ $k$. У сильно выпуклой функции минимум единст
 \begin{proposition}[эквивалентные формы]\label{prop:equiv}
 Для дифференцируемой $f$:
 
-\textbf{(а)} гладкость \eqref{eq:lipgrad} эквивалентна мажорированию
-квадратичной формой с кривизной $L$:
+\textbf{(а)} для выпуклой $f$ гладкость \eqref{eq:lipgrad} эквивалентна
+мажорированию квадратичной формой с кривизной $L$:
 \begin{equation}\label{eq:upper-par}
 f(y) \le f(x) + \scal{\nabla f(x)}{y - x} + \frac{L}{2} \norm{y - x}^2 ;
 \end{equation}
+прямая сторона верна и без выпуклости; обратная без выпуклости неверна:
+$f(x) = -x^4$ на прямой удовлетворяет \eqref{eq:upper-par} при любом
+$L \ge 0$, но её производная не липшицева ни при каком $L$;
 
 \textbf{(б)} для дважды дифференцируемой $f$ условие \eqref{eq:lipgrad}
 равносильно $\nabla^2 f(x) \preceq L I$ для всех $x$;
@@ -125,26 +132,44 @@ f(y) \le f(x) + \scal{\nabla f(x)}{y - x} + \frac{L}{2} \norm{y - x}^2 ;
 \textbf{(г)} для гладкой выпуклой $f$ сильная выпуклость \eqref{eq:strong}
 равносильна сильной монотонности градиента:
 \begin{equation}\label{eq:mono}
-\scal{\nabla f(y) - \nabla f(x)}{y - x} \ge \mu \norm{y - x}^2 .
+\scal{\nabla f(y) - \nabla f(x)}{y - x} \ge \mu \norm{y - x}^2 ;
+\end{equation}
+
+\textbf{(д)} для гладкой выпуклой $f$ градиент коэрцитивен (англ.
+\emph{co-coercive}):
+\begin{equation}\label{eq:cocoerc}
+\scal{\nabla f(y) - \nabla f(x)}{y - x} \ge \frac{1}{L} \norm{\nabla f(y) - \nabla f(x)}^2 .
 \end{equation}
 \end{proposition}
 
 \begin{proof}
-\textbf{(а)} Пусть $g(t) = f(x + t(y-x))$, $t \in [0,1]$. Тогда
+\textbf{(а)} $g(t) = f(x + t(y-x))$, $t \in [0,1]$; тогда
 $g'(t) = \scal{\nabla f(x + t(y-x))}{y - x}$ и
 $$
 f(y) - f(x) - \scal{\nabla f(x)}{y - x}
-= \int_0^1 \scal{\nabla f(x + t(y-x)) - \nabla f(x)}{y - x}\, dt
+= \int_0^1 \scal{\nabla f(x + t(y-x)) - \nabla f(x)}{y - x}\, dt .
+$$
+Оценивая подынтегральное выражение через липшицевость градиента,
+$$
+\int_0^1 \scal{\nabla f(x + t(y-x)) - \nabla f(x)}{y - x}\, dt
 \le \int_0^1 L t \norm{y-x}^2\, dt = \frac{L}{2}\norm{y-x}^2 .
 $$
-Обратно: из \eqref{eq:upper-par} для $y = x + h$, $h = t d$,
+
+Обратно (для выпуклой $f$): зафиксируем $y$ и применим прямую сторону к
+выпуклой $L$-гладкой функции $g(x) = f(x) - \scal{\nabla f(y)}{x}$,
+минимализируемой в точке $y$ ($\nabla g(y) = 0$). Подставляя в
+\eqref{eq:upper-par} вместо $y$ точку $x - \frac1L \nabla g(x)$:
 $$
-f(x + td) - f(x) \le t \scal{\nabla f(x)}{d} + \frac{L t^2}{2} \norm{d}^2 ,
+g(y) \le g\bigl(x - \tfrac1L \nabla g(x)\bigr)
+\le g(x) - \tfrac{1}{2L} \norm{\nabla g(x)}^2 ,
 $$
-аналогично снизу с $x \to x + td$, $y = x$: после перестановки и
-предельного перехода $t \to 0$ получаем
-$\scal{\nabla f(x + td) - \nabla f(x)}{d} \le L t \norm{d}^2$, что при
-$d = y - x$ даёт \eqref{eq:lipgrad}.
+то есть $f(x) - f(y) - \scal{\nabla f(y)}{x - y} \ge
+\frac{1}{2L}\norm{\nabla f(x) - \nabla f(y)}^2$. Выписывая то же
+неравенство с переставленными $x$ и $y$ и складывая, получаем
+кокоэрцитивность \eqref{eq:cocoerc} из пункта (д); по
+Коши—Буняковскому она даёт \eqref{eq:lipgrad}:
+$\norm{\nabla f(y) - \nabla f(x)} \cdot \norm{y - x} \ge
+\frac1L \norm{\nabla f(y) - \nabla f(x)}^2$.
 
 \textbf{(б)} Если $\nabla^2 f \preceq L I$, то по формуле Тейлора с
 остатком в интегральной форме
@@ -160,8 +185,11 @@ $\nabla^2 f(x) \preceq L I$.
 и $\nabla^2 f \succeq \mu I$ дают
 $$
 f(y) = f(x) + \scal{\nabla f(x)}{y-x} + \int_0^1 (1-t)\,
-\scal{\nabla^2 f(x + t(y-x)) (y-x)}{y-x}\, dt
-\ge f(x) + \scal{\nabla f(x)}{y-x} + \frac{\mu}{2}\norm{y-x}^2 .
+\scal{\nabla^2 f(x + t(y-x)) (y-x)}{y-x}\, dt .
+$$
+Подынтегральное выражение не меньше $(1-t)\,\mu \norm{y-x}^2$, поэтому
+$$
+f(y) \ge f(x) + \scal{\nabla f(x)}{y-x} + \frac{\mu}{2}\norm{y-x}^2 .
 $$
 Необходимость: вычитая из \eqref{eq:strong} её же с переставленными $x, y$ и
 применяя к разности формулу Тейлора, получаем
@@ -177,13 +205,16 @@ f(y) \ge f(x) + \scal{\nabla f(x)}{y-x} + \scal{\nabla f(y) - \nabla f(x)}{y-x}
 \ge f(x) + \scal{\nabla f(x)}{y-x} + \frac{\mu}{2}\norm{y-x}^2
 $$
 даёт \eqref{eq:strong}.
+
+\textbf{(д)} Доказано в ходе обратного направления (а): неравенство
+\eqref{eq:cocoerc} получено там для произвольной выпуклой $L$-гладкой $f$.
 \end{proof}
 
 \begin{remark}
 Запись обозначений у разных школ различается ровно вдвое по $\mu$:
-у [12] сильная выпуклость вводится слагаемым $\vartheta \lambda(1-\lambda)
+у [12] (Сухарев, Тимохов, Федоров) сильная выпуклость вводится слагаемым $\vartheta \lambda(1-\lambda)
 \norm{x^1 - x^2}^2$ в определении, что соответствует $\mu = 2\vartheta$;
-у [13] константа сильной выпуклости $l$ совпадает с нашей $\mu$. Формулы
+у [13] (Поляк) константа сильной выпуклости $l$ совпадает с нашей $\mu$. Формулы
 источников при цитировании переведены на обозначения
 определения \ref{def:strong}.
 \end{remark}
@@ -298,7 +329,7 @@ $f$ — антиградиент: для единичного $d$
 $$
 f(x + td) - f(x) = t \scal{\nabla f(x)}{d} + o(t),
 $$
-и минимум $\scal{\nabla f(x)}{d}$ по $d$, $\norm{d} = 1$, равен
+и минимум $\scal{\nabla f(x)}{d}$ по таким $d$ равен
 $-\norm{\nabla f(x)}$ и достигается при $d = -\nabla f(x) / \norm{\nabla
 f(x)}$. Метод градиентного спуска (англ. *gradient descent*) строит
 последовательность
@@ -347,7 +378,7 @@ $R = \norm{x^0 - x^*}$, где $x^*$ — точка минимума.
 \end{equation}
 
 \textbf{(б) Выпуклый случай.} $f$ выпукла. Тогда для усреднённой точки
-$\bar x^N = \frac1N \sum_{k=0}^{N-1} x^k$
+$\bar x^N = \frac1N \sum_{k=1}^{N} x^k$
 \begin{equation}\label{eq:gd-convex}
 f\bigl(\bar x^N\bigr) - f^* \le \frac{L R^2}{2N} .
 \end{equation}
@@ -373,71 +404,49 @@ $$
 $$
 Левая часть не меньше $\frac{N}{2L} \min_k \norm{\nabla f(x^k)}^2$.
 
-\textbf{(б)} Выпуклость дает $f(x) - f^* \le \scal{\nabla f(x)}{x - x^*}$
-(теорема \ref{thm:foc}), поэтому из \eqref{eq:telescope-key}
+\textbf{(б)} Выпуклость даёт $f(x) - f^* \le \scal{\nabla f(x)}{x - x^*}$
+(теорема \ref{thm:foc}), поэтому
 $$
-f(x^k) - f^* \le \scal{\nabla f(x^k)}{x^k - x^*}
-\le L \scal{x^k - x^{k+1}}{x^k - x^*} .
+\norm{x^{k+1} - x^*}^2 = \norm{x^k - x^*}^2 - \frac{2}{L} \scal{\nabla f(x^k)}{x^k - x^*} + \frac{1}{L^2}\norm{\nabla f(x^k)}^2 ,
 $$
-Используем тождество $2\scal{u}{v} = \norm{u}^2 + \norm{v}^2 - \norm{u-v}^2$
-с $u = x^k - x^{k+1}$, $v = x^k - x^*$:
+где $\frac{1}{L^2}\norm{\nabla f(x^k)}^2 \le \frac{2}{L}\bigl(f(x^k) - f(x^{k+1})\bigr)$
+по \eqref{eq:telescope-key}. Перегруппировка даёт
 $$
-f(x^k) - f^* \le \frac{L}{2}\Bigl( \norm{x^k - x^{k+1}}^2 + \norm{x^k - x^*}^2 - \norm{x^{k+1} - x^*}^2 \Bigr) .
+\frac{2}{L}\bigl(f(x^{k+1}) - f^*\bigr) \le \norm{x^k - x^*}^2 - \norm{x^{k+1} - x^*}^2 .
 $$
-Суммируем по $k$; слагаемые $\norm{x^k - x^*}^2$ телескопируются:
-\begin{equation}\label{eq:gd-convex-sum}
-\sum_{k=0}^{N-1} \bigl(f(x^k) - f^*\bigr)
-\le \frac{L}{2} \Bigl( \sum_{k=0}^{N-1} \norm{x^k - x^{k+1}}^2 + R^2 \Bigr) .
-\end{equation}
-С другой стороны, \eqref{eq:telescope-key} дает
-$f(x^{k+1}) \ge f(x^k) - \frac{1}{2L}\norm{\nabla f(x^k)}^2$; но нам нужна
-оценка суммы квадратов шагов: из \eqref{eq:telescope-key} после суммирования
+Суммируем по $k = 0, \dots, N-1$; правая часть телескопируется:
 $$
-\sum_{k=0}^{N-1} \norm{x^k - x^{k+1}}^2 = \frac{1}{L^2} \sum_{k=0}^{N-1} \norm{\nabla f(x^k)}^2 \le \frac{2}{L} \bigl(f(x^0) - f^*\bigr) \le \frac{2}{L} \cdot \frac{L R^2}{2} = R^2,
+\frac{2}{L} \sum_{k=1}^{N} \bigl(f(x^k) - f^*\bigr) \le R^2 .
 $$
-где $f(x^0) - f^* \le \frac{L R^2}{2}$ — это \eqref{eq:upper-par} с
-$y = x^*$, $x = x^0$. Подставляем в \eqref{eq:gd-convex-sum}:
-$$
-\sum_{k=0}^{N-1} \bigl(f(x^k) - f^*\bigr) \le \frac{L R^2}{2} + \frac{L R^2}{2} = L R^2 .
-$$
-По выпуклости $f(\bar x^N) \le \frac1N \sum_k f(x^k)$, и деление на $N$
+По выпуклости $f(\bar x^N) \le \frac1N \sum_{k=1}^N f(x^k)$, и деление на $N$
 даёт \eqref{eq:gd-convex}.
 
-\textbf{(в)} Сначала докажем оценку по аргументу. Сильная выпуклость
-в точке минимума ($\nabla f(x^*) = 0$) дает
-(предложение \ref{prop:equiv}, г):
+\textbf{(в)} Сначала оценка по аргументу. Функция $g = f - \frac{\mu}{2}\norm{\cdot}^2$
+выпукла (это \eqref{eq:strong} в точке $x = y$) и $(L-\mu)$-гладка: по
+пункту (а) достаточно выпуклости $\frac{L}{2}\norm{\cdot}^2 - f$, а она
+имеется — это прямая сторона (а), применённая к $L$-гладкой $f$. Применяем
+к $g$ кокоэрцитивность (предложение \ref{prop:equiv}, д) и переносим члены:
 $$
-\scal{\nabla f(x)}{x - x^*} \ge \mu \norm{x - x^*}^2 .
+L \scal{\nabla f(x) - \nabla f(y)}{x - y} \ge \norm{\nabla f(x) - \nabla f(y)}^2 + \mu L \norm{x - y}^2 .
 $$
-Тогда из \eqref{eq:telescope-key} и выпуклости
-($f(x) - f^* \le \scal{\nabla f(x)}{x - x^*}$):
+Подставляем $x = x^k$, $y = x^*$ (где $\nabla f(x^*) = 0$) в разложение
 $$
-\norm{x^{k+1} - x^*}^2 = \norm{x^k - x^*}^2 - \frac{2}{L} \scal{\nabla f(x^k)}{x^k - x^*} + \frac{1}{L^2}\norm{\nabla f(x^k)}^2 .
+\norm{x^{k+1} - x^*}^2 = \norm{x^k - x^*}^2 - \frac{2}{L} \scal{\nabla f(x^k)}{x^k - x^*} + \frac{1}{L^2}\norm{\nabla f(x^k)}^2 :
 $$
-Оцениваем среднее слагаемое снизу через $\mu \norm{x^k - x^*}^2$, а
-последнее — сверху через \eqref{eq:telescope-key}, откуда
-$\norm{\nabla f(x^k)}^2 \le 2L (f(x^k) - f(x^{k+1})) \le 2L (f(x^k) - f^*)$:
 $$
-\norm{x^{k+1} - x^*}^2 \le \Bigl(1 - \frac{2\mu}{L}\Bigr) \norm{x^k - x^*}^2 + \frac{2}{L}\bigl(f(x^k) - f^*\bigr).
+\norm{x^{k+1} - x^*}^2 \le \frac{L - \mu}{L + \mu}\, \norm{x^k - x^*}^2 - \frac{L - \mu}{L^2(\mu + L)}\, \norm{\nabla f(x^k)}^2 \le \Bigl(1 - \frac{\mu}{L}\Bigr) \norm{x^k - x^*}^2 ,
 $$
-Другой путь: из сильной выпуклости $f(x^k) - f^* \ge \frac{\mu}{2}\norm{x^k - x^*}^2$, и тогда
-$$
-\norm{x^{k+1} - x^*}^2 \le \Bigl(1 - \frac{2\mu}{L} + \frac{\mu}{L}\Bigr)\norm{x^k - x^*}^2 = \Bigl(1 - \frac{\mu}{L}\Bigr) \norm{x^k - x^*}^2 .
-$$
-Итерация логарифма даёт $\norm{x^N - x^*}^2 \le (1 - \mu/L)^N R^2$.
-Далее, лемма \ref{lem:descent} в точке $x^*$ с $\gamma = 1/L$ в роли
-«шага по градиенту от $x^*$ к $x^k$» не работает напрямую; вместо этого
-применим \eqref{eq:upper-par} с $x = x^*$, $y = x^k$:
-$f(x^k) - f^* \le \frac{L}{2}\norm{x^k - x^*}^2 \le \frac{L R^2}{2} (1 - \mu/L)^N$.
-Оценка $\frac{LR^2}{2N}$ — это \eqref{eq:gd-convex}, усиленная монотонностью
-$f(x^N) \le f(\bar x^N)$ не верна для произвольной точки, но
-$f(x^N) - f^* \le \frac1N \sum_k (f(x^k) - f^*) \le \frac{L R^2}{2N}$ следует
-из монотонности $f(x^N) \le f(x^k)$ и уже доказанного.
+так как $\frac{L-\mu}{L+\mu} \le 1 - \frac{\mu}{L}$. Итерация логарифма
+даёт $\norm{x^N - x^*}^2 \le (1 - \mu/L)^N R^2$. Далее, применяя
+\eqref{eq:upper-par} с $x = x^*$, $y = x^N$:
+$f(x^N) - f^* \le \frac{L}{2}\norm{x^N - x^*}^2 \le \frac{L R^2}{2} (1 - \mu/L)^N$.
+Наконец, $f(x^N) - f^* \le \frac1N \sum_{k=1}^N \bigl(f(x^k) - f^*\bigr) \le
+\frac{L R^2}{2N}$ — это пункт (б) и монотонность $f(x^N) \le f(x^k)$.
 \end{proof}
 
 \begin{remark}[существенность посылок]\label{rem:gd-assumptions}
 Каждая посылка теоремы \ref{thm:gd-conv} существенна, и контрпримеры
-явные [13]. \textbf{(1)} Без липшицевости градиента метод может расходиться:
+явные [13] (Поляк). \textbf{(1)} Без липшицевости градиента метод может расходиться:
 $f(x) = \abs{x}^{2+\varepsilon}$ при $\gamma = 1$ уходит на бесконечность
 для $x^0$ вне компакта. \textbf{(2)} Без ограниченности снизу градиент не
 обязан стремиться к нулю: для линейной $f$ при любом шаге
@@ -449,7 +458,7 @@ $f(x) = \tfrac12 \norm{x}^2$: при $\gamma = 2/L$ последовательн
 $f(x) = 1/(1 + \norm{x}^2)$ дает $\nabla f(x^k) \to 0$ без сходимости $x^k$;
 без сильной выпуклости скорость может быть сколь угодно малой: для
 $f(x) = 1/x$ на $[1, \infty)$ при $\gamma = 1$ имеем
-$\abs{f'(x^k)} = O(k^{-2/3})$ [13].
+$\abs{f'(x^k)} = O(k^{-2/3})$ [13] (Поляк).
 \end{remark}
 
 Все три режима теоремы \ref{thm:gd-conv} точны по порядку: в разделе
@@ -520,65 +529,119 @@ $(q^*)^N \le \varepsilon$ при $N \ge \frac{\varkappa + 1}{2} \ln
 \textbf{(2) Овражная структура.} При $\varkappa \gg 1$ линии уровня $f$
 вытянуты вдоль собственных направлений $B$ с малыми собственными
 значениями; траектория спуска зигзагом пересекает овраг, и каждый шаг
-продвигает по длине лишь на $O(1/\varkappa)$ долю расстояния. Пример 1
-\texttt{examples.ipynb} измеряет фактический знаменатель на задаче с
-$\varkappa = 10^3$: он совпадает с $q^*$ из \eqref{eq:opt-step}.
+продвигает по длине лишь на $O(1/\varkappa)$ долю расстояния. Фактический
+знаменатель на задаче с $\varkappa = 10^3$ измеряет пример 1
+\texttt{examples.ipynb}: он совпадает с $q^*$ из \eqref{eq:opt-step}.
 \end{remark}
 
 # Нижние оценки для методов первого порядка {#sec:lower}
 
 Теорема \ref{thm:gd-conv} давала оценки сверху. Покажем, что по порядку они
 точны: ни один метод, использующий только оракулы значения и градиента,
-не может сходиться быстрее. Формулировки и функции-«подсадки» —
-из [37], упр. 1.3; доказательство — классическая схема Немировского—Юдина
-в воспроизведении для этих конкретных семейств.
+не может сходиться быстрее. Функции-«подсадки» и постановка — из [37] (Гасников),
+упр. 1.3; выкладки ниже выписаны полностью.
 
 \begin{theorem}[нижние оценки]\label{thm:lower}
-\textbf{(а)} Существует $L$-гладкая выпуклая $f$ с минимумом $f^*$ и
-точкой минимума $x^*$, $\norm{x^0 - x^*} \le R$, такая что для любого
-метода, генерирующего точки $x^k$ по правилу
+\textbf{(а)} Для любых $L > 0$, $N \ge 1$ существует $L$-гладкая выпуклая
+$f$ на $\R^n$ ($2N+1 \le n$) с точкой минимума $x^*$ такая, что при
+$x^0 = 0$ для любого метода, генерирующего точки по правилу
 $x^k \in x^0 + \operatorname{span}\{\nabla f(x^0), \dots, \nabla f(x^{k-1})\}$,
 \begin{equation}\label{eq:lower-convex}
-f(x^N) - f^* \ge \frac{3 L R^2}{32 (N+1)^2}, \qquad N < n .
+\min_{k=1,\dots,N} f(x^k) - f^* \ge \frac{3 L \norm{x^0 - x^*}^2}{32 (N+1)^2} \, .
 \end{equation}
 
-\textbf{(б)} Для любых $L \ge \mu > 0$ существует $L$-гладкая
-$\mu$-сильно выпуклая $f$ с $\norm{x^0 - x^*} \le R$ такая, что
+\textbf{(б)} Для любых $L \ge \mu > 0$, $N \ge 1$ существует $L$-гладкая
+$\mu$-сильно выпуклая $f$ на $\ell_2$ с точкой минимума $x^*$ такая, что
+при $x^0 = 0$ для любого такого метода
 \begin{equation}\label{eq:lower-strong}
-f(x^N) - f^* \ge \frac{\mu R^2}{2} \Bigl( \frac{\sqrt\varkappa - 1}{\sqrt\varkappa + 1} \Bigr)^{2N} .
+f(x^N) - f^* \ge \frac{\mu}{2} \Bigl( \frac{\sqrt\varkappa - 1}{\sqrt\varkappa + 1} \Bigr)^{2N} \norm{x^0 - x^*}^2 , \qquad \varkappa = \frac{L}{\mu} \, .
 \end{equation}
 \end{theorem}
 
 \begin{proof}
-\textbf{(а)} Рассмотрим семейство квадратичных форм на $\R^{2N+2}$, $m =
-2N+2$:
-$$
-f_m(x) = \frac{L}{4} \Bigl( \tfrac12 x_1^2 + \tfrac12 x_m^2 + \sum_{i=1}^{m-1} (x_i - x_{i+1})^2 - x_1 \Bigr),
-$$
-— «трёхдиагональная» форма (та же матрица, что в сквозном примере
-раздела \ref{sec:cheb} с константами по $L$). Матрица $A_m$ этой формы
-имеет собственные значения
-$$
-\lambda_i = L \Bigl(1 - \cos \frac{\pi i}{m + 1}\Bigr), \qquad i = 1, \dots, m,
-$$
-с относящимися к ним собственными векторами
-$v_i \propto \bigl(\sin\frac{\pi i}{m+1}, \dots, \sin\frac{\pi i m}{m+1}\bigr)$.
-При $x^0 = 0$ градиент $\nabla f_m(x) = A_m x - \frac{L}{4} e_1$ имеет
-поддержку в первых $k+1$ координатах, если $x$ поддержан в первых $k$;
-индукцией по $k$ точка $x^k$ любого метода из условия поддержана в
-первых $k+1$ координатах, и траектория не зависит от $m$, пока
-$m \ge 2N+2$. Взяв $m = 2N+2$ и оценивая минимум по
-последней координате (которая равна нулю на траектории длины $N+1$), после
-вычисления $f^*$ прямым минимизацией по формуле для обратной трёхдиагональной
-матрицы получаем \eqref{eq:lower-convex}; вычисление громоздко, но
-элементарно и воспроизведено в [37], упр. 1.3.
+Обозначим через $S$ матрицу смежности пути (единицы на двух побочных
+диагоналях, в бесконечномерном случае — ограниченный оператор в $\ell_2$,
+$\norm{S} \le 2$). Ключевое наблюдение для обоих пунктов — про опор
+траектории: градиент рассматриваемых функций имеет вид
+$\nabla f(x) = c\,(2I - S)x - c\,e_1$ ($c > 0$ — константа), а если $x$
+поддержан на первых $j$ координатах, то $(2I - S)x$ поддержан на первых
+$j+1$ (новая координата $j+1$ возникает из члена $-x_j$), поэтому
+$\nabla f(x)$ поддержан на первых $j+1$ координатах. Так как $x^0 = 0$,
+индукция по $k$ даёт: $x^k$ любого метода из условия теоремы поддержан
+на первых $k$ координатах, $x^k_i = 0$ при $i > k$.
 
-\textbf{(б)} Добавим сильную выпуклость: $f(x) = f_m(x) + \frac{\mu}{2}\norm{x}^2$
-с тем же $A_m$ и $m = 2N+2$. Теперь матрица $\mu I + A_m$ имеет собственные
-значения $\mu + \lambda_i \in [\mu, \mu + 2L]$, и аналогичная поддержка
-даёт оценку по последней координате, сводящуюся к
-\eqref{eq:lower-strong} после подстановки собственных значений и
-нормировки $R$.
+\textbf{(а)} Пусть $m = 2N+1$ и
+$$
+f(x) = F_m(x) = \frac{L}{8}\Bigl[ x_1^2 + \sum_{i=1}^{m-1}(x_i - x_{i+1})^2 + x_m^2 - 2 x_1 \Bigr]
+$$
+(координаты $i > m$ в $f$ не входят). Раскрыв скобки,
+$F_m(x) = \frac{L}{4}\bigl[ \norm{x}^2 - \sum_{i=1}^{m-1} x_i x_{i+1} \bigr] - \frac{L}{4}x_1$,
+то есть $\nabla^2 F_m = \frac{L}{4}(2I - S)$. Собственные значения $2I - S$
+равны $2 - 2\cos\frac{\pi i}{m+1} \in (0, 4)$, поэтому $F_m$ выпукла и
+$L$-гладка. Уравнение минимума $\nabla F_m = 0$ — это $(2I - S)x = e_1$;
+обратная к $2I - S$ трёхдиагональна,
+$\bigl[(2I-S)^{-1}\bigr]_{ij} = \frac{\min(i,j)\,(m+1-\max(i,j))}{m+1}$
+(проверяется прямым умножением: определитель углового минора $k \times k$
+матрицы $2I - S$ равен $k+1$), поэтому
+$$
+x^*_i = \frac{m+1-i}{m+1} \ (i \le m), \qquad x^*_i = 0 \ (i > m) .
+$$
+Домножив уравнение минимума на $(x^*)^{\mathsf T}$, получаем
+$\norm{x^*}^2 - \sum_{i=1}^{m-1} x^*_i x^*_{i+1} = \frac{x^*_1}{2}$, откуда
+$$
+f^* = -\frac{L}{8}\, x^*_1 = -\frac{L}{8}\, \frac{m}{m+1},
+$$
+$$
+\norm{x^0 - x^*}^2 = \norm{x^*}^2 = \sum_{i=1}^m \frac{(m+1-i)^2}{(m+1)^2} = \frac{m(2m+1)}{6(m+1)} \le \frac{2(N+1)}{3}
+$$
+(подстановка $m = 2N+1$).
+
+На подпространстве $\{x : x_i = 0,\ i > k\}$ функция $F_m$ совпадает с
+$F_k$ той же формы, и по выкладке выше её минимум равен
+$-\frac{L}{8}\frac{k}{k+1}$. Поэтому для $k \le N$
+$$
+f(x^k) \ge -\frac{L}{8}\, \frac{k}{k+1} \ge -\frac{L}{8}\, \frac{N}{N+1},
+\qquad
+f(x^k) - f^* \ge \frac{L}{8}\Bigl[ \frac{2N+1}{2N+2} - \frac{N}{N+1} \Bigr] = \frac{L}{16(N+1)} \, .
+$$
+Сравнивая с нормой, получаем $\frac{L}{16(N+1)} \ge \frac{3L \norm{x^0-x^*}^2}{32(N+1)^2}$ — это и есть \eqref{eq:lower-convex}.
+
+\textbf{(б)} Положим $\chi = \varkappa$ и
+$$
+f(x) = \frac{\mu(\chi-1)}{8}\Bigl[ x_1^2 + \sum_{i=1}^{\infty}(x_i - x_{i+1})^2 - 2 x_1 \Bigr] + \frac{\mu}{2}\norm{x}^2 , \qquad x \in \ell_2 .
+$$
+Сумма сходится: $\sum_{i\ge1}(x_i-x_{i+1})^2 \le 2\norm{x}^2 + 2\norm{x}^2 = 4\norm{x}^2$, то же верно и для $\scal{Sx}{x}$, так что квадратичная форма в скобках равна $\scal{(2I-S)x}{x} \in [0, 4\norm{x}^2]$ и $f$ корректно определена на $\ell_2$, выпукла, $\mu$-сильно выпукла (член $\frac{\mu}{2}\norm{x}^2$) и $L$-гладка: $\mu I \preceq \nabla^2 f \preceq \mu I + \frac{\mu(\chi-1)}{4}\cdot 4I = \mu\chi\, I$.
+
+Пусть $q = \frac{\sqrt\chi - 1}{\sqrt\chi + 1} \in [0,1)$; тогда
+$\chi - 1 = \frac{4q}{(1-q)^2}$ и
+\begin{equation}\label{eq:q-ident}
+q + \frac1q = \frac{2(\chi+1)}{\chi-1} = 2 + \frac{4}{\chi-1} \, .
+\end{equation}
+Уравнение минимума $\nabla f(x) = \frac{\mu(\chi-1)}{4}\bigl[(2I - S)x - e_1\bigr] + \mu x = 0$ после деления на $\frac{\mu(\chi-1)}{4}$ и подстановки \eqref{eq:q-ident} принимает вид $T x = e_1$, где $T = (q + q^{-1})I - S$. Вектор $x^*_i = q^i$ принадлежит $\ell_2$ и решает его: при $i \ge 2$ строка равна $q^{i-1}\bigl[(q+q^{-1})q - 1 - q^2\bigr] = 0$, а при $i = 1$: $(q+q^{-1})q - q^2 = 1$. По сильной выпуклости это и есть точка минимума, и
+$$
+f^* = -\frac{\mu(\chi-1)}{8}\, q , \qquad \norm{x^0 - x^*}^2 = \norm{x^*}^2 = \sum_{i\ge1} q^{2i} = \frac{q^2}{1-q^2} \, .
+$$
+
+На подпространстве $\{x : x_i = 0,\ i > k\}$ минимум достигается на векторе
+$y_i = \frac{q^i - q^{2k+2-i}}{1 - q^{2k+2}}$ ($i \le k$): для $2 \le i \le k$
+строка $T$ обнуляется как выше, а для $i = 1$ получаем
+$\bigl[(q+q^{-1})(q - q^{2k+1}) - (q^2 - q^{2k})\bigr] = 1 - q^{2k+2}$
+(снова \eqref{eq:q-ident}), то есть $T_k y = e_1$. Значит,
+$$
+\min_{\{x_i = 0,\, i > k\}} f = -\frac{\mu(\chi-1)}{8}\, y_1 = -\frac{\mu(\chi-1)}{8}\, \frac{q\,(1 - q^{2k})}{1 - q^{2k+2}} \, .
+$$
+Для $k \le N$ отсюда
+$$
+f(x^k) - f^* \ge \frac{\mu(\chi-1)}{8}\Bigl[ q - \frac{q\,(1 - q^{2N})}{1 - q^{2N+2}} \Bigr] = \frac{\mu(\chi-1)}{8}\, \frac{q^{2N+1}(1 - q^2)}{1 - q^{2N+2}} \ge \frac{\mu(\chi-1)}{8}\, q^{2N+1}(1 - q^2) .
+$$
+Осталось сравнить с целевой величиной
+$\frac{\mu}{2} q^{2N} \norm{x^0-x^*}^2 = \frac{\mu}{2}\, \frac{q^{2N+2}}{1 - q^2}$:
+$$
+\frac{\mu(\chi-1)}{8}\, q^{2N+1}(1-q^2) \,\Big/\, \frac{\mu}{2}\, \frac{q^{2N+2}}{1-q^2} = \frac{(\chi-1)(1-q^2)^2}{4q} = \frac{(1-q^2)^2}{(1-q)^2} = (1+q)^2 \ge 1
+$$
+(в середине — подстановка $\chi - 1 = \frac{4q}{(1-q)^2}$). Значит,
+$f(x^k) - f^* \ge \frac{\mu}{2} q^{2N} \norm{x^0-x^*}^2$ — это
+\eqref{eq:lower-strong}.
 \end{proof}
 
 \begin{remark}
@@ -587,7 +650,9 @@ $m \ge 2N+2$. Взяв $m = 2N+2$ и оценивая минимум по
 оценкой $(1 - 1/\varkappa)^N$ и нижней $(1 - 2/\sqrt\varkappa)^{2N}
 \approx (1 - 1/\sqrt\varkappa)^{2N}$ закрывается ускоренными методами
 разделов \ref{sec:cheb} и \ref{sec:nesterov}: они сходятся со знаменателем
-$1 - O(1/\sqrt\varkappa)$ и совпадают с нижней оценкой по порядку.
+$1 - O(1/\sqrt\varkappa)$ и совпадают с нижней оценкой по порядку. В п.(б)
+тот же опор траектории даёт и оценку по аргументу:
+$\norm{x^N - x^*}^2 \ge \sum_{i > N} q^{2i} = q^{2N} \norm{x^0 - x^*}^2$.
 \end{remark}
 
 # Чебышёвское ускорение {#sec:cheb}
@@ -633,11 +698,11 @@ $1 - 2/\sqrt\varkappa$.
 Прямая реализация — перемножение сомножителей $(I - \gamma_j A)$ — на
 компьютере не работает: при $\varkappa \gtrsim 10^2$ погрешность округления
 съедает результат раньше, чем $q_k$ достигает $10^{-6}$ (измерено в вопросе
-11, пример 4; теоретическая оговорка — [09], §6 п. 2: промежуточные
+11, пример 4; теоретическая оговорка — [9] (Самарский, Гулин), §6 п. 2: промежуточные
 операторы $I - \gamma_j A$ имеют норму, бóльшую единицы, и произведение
 переполняется при неудачном порядке сомножителей). Рабочая форма —
 трёхчленная рекуррентность по $T_k$, метод чебышёвских полуитераций
-(англ. *Chebyshev semi-iterative method*) [02]:
+(англ. *Chebyshev semi-iterative method*) [2] (Голуб, Ван Лоун):
 
 \begin{equation}\label{eq:cheb-rec}
 \begin{aligned}
@@ -725,7 +790,7 @@ $\sigma^k \le \varepsilon/2$; так как
 $-\ln \sigma = \ln\frac{\sqrt\varkappa+1}{\sqrt\varkappa-1} =
 \ln\bigl(1 + \frac{2}{\sqrt\varkappa - 1}\bigr) \ge \frac{2}{\sqrt\varkappa}$,
 достаточно $k \ge \sqrt\varkappa \ln(2/\varepsilon) / 2$; в обозначениях
-[09] $\xi = 1/\varkappa$ это формула \eqref{eq:cheb-iters}.
+[9] (Самарский, Гулин) $\xi = 1/\varkappa$ это формула \eqref{eq:cheb-iters}.
 \end{proof}
 
 \begin{remark}[почему рекуррентная форма устойчива]\label{rem:cheb-stable}
@@ -737,18 +802,21 @@ $2\mu \cdot T_k(\mu)/T_{k+1}(\mu) \approx 2\mu / (2\mu) = 1$
 (так как $T_{k+1}(\mu)/T_k(\mu) \to \mu + \sqrt{\mu^2 - 1} > \mu$), то
 же остаются ограниченными; все промежуточные векторы рекуррентности —
 выпуклые комбинации с ограниченными коэффициентами, и ошибки округления
-не накапливаются множительно (измерение — пример 2 \texttt{examples.ipynb}:
-рекуррентная форма достигает $10^{-6}$ при $\varkappa = 10^2$ там, где
-множительная останавливается на $8 \cdot 10^{-6}$ по погрешности
-округления; в вопросе 11 показано, что при $\varkappa \gtrsim 10^2$
-множительная форма вообще не достигает $10^{-6}$).
+не накапливаются множительно (измерение — пример 2
+\texttt{examples.ipynb}: при $\varkappa = 10^2$ за 60 итераций трёхчленная
+форма даёт относительную ошибку $8{,}9 \cdot 10^{-6}$ — как теоретическая
+граница $q_{60} \approx 1{,}2 \cdot 10^{-5}$ по порядку, — тогда как
+множительная форма расходится из-за округления: её относительная ошибка
+возрастает до $1{,}3 \cdot 10^{8}$; в вопросе 11, пример 4, показано, что
+при $\varkappa \gtrsim 10^2$ множительная форма вообще не достигает
+точности $10^{-6}$).
 \end{remark}
 
 \begin{remark}[что нужно знать для чебышёвского ускорения]
 Границы спектра $\mu_{\min}, \mu_{\max}$. Оценка спектра — отдельная
 вычислительная задача; квадратичный метод сопряжённых градиентов даёт тот
 же закон $\sqrt\varkappa$ без всякого знания спектра (раздел \ref{sec:cg}),
-и в этом его практическое преимущество [02].
+и в этом его практическое преимущество [2] (Голуб, Ван Лоун).
 \end{remark}
 
 # Метод сопряжённых градиентов {#sec:cg}
@@ -792,26 +860,39 @@ $\gamma_k = -\scal{\nabla \varphi(x^k)}{h^k} / \scal{A h^k}{h^k}$.
 очевидны, (в) — тривиально.
 
 Шаг: пусть утверждения верны до номера $k$ включительно. Одномерный
-минимум по $\gamma$ даёт необходимое условие
-$\scal{\nabla \varphi(x^{k+1})}{h^k} = 0$. Для $j < k$ по индукции
+минимум по $\gamma$ на шаге $k$ даёт необходимое условие
+$\scal{\nabla \varphi(x^{k+1})}{h^k} = 0$. Для $j \le k$ по индукции
 $\nabla\varphi(x^{k+1}) = \nabla\varphi(x^j) + \sum_{i=j}^{k} \gamma_i A h^i$
 (телескопическая сумма $\gamma_i A h^i = A(x^{i+1} - x^i)$); скалярно
-умножая на $h^j$ и используя $\scal{\nabla\varphi(x^j)}{h^j} = 0$
-(одномерный минимум на шаге $j$) и $A$-сопряжённость $h^i$ при $i > j$,
-получаем $\scal{\nabla\varphi(x^{k+1})}{h^j} = 0$. По (в) индукции
-$\nabla\varphi(x^j) \in \operatorname{span}\{h^0,\dots,h^j\}$, поэтому из
-$\scal{\nabla\varphi(x^{k+1})}{h^i} = 0$ для $i \le k$ следует (а) для
-пары $(k+1, j)$, $j \le k$: вектор $\nabla\varphi(x^j)$ — комбинация
-$h^0, \dots, h^j$.
+умножая на $h^j$, получаем
+$$
+\scal{\nabla\varphi(x^{k+1})}{h^j} = \scal{\nabla\varphi(x^j)}{h^j} + \gamma_j \scal{A h^j}{h^j} + \sum_{i>j} \gamma_i \scal{A h^i}{h^j} .
+$$
+Сумма равна нулю по $A$-сопряжённости (индукция),
+$\scal{\nabla\varphi(x^j)}{h^j} = -\norm{\nabla\varphi(x^j)}^2$ (для
+$j \ge 1$ — потому что $h^j = -\nabla\varphi(x^j) + \beta_{j-1} h^{j-1}$ и
+$\scal{\nabla\varphi(x^j)}{h^{j-1}} = 0$ по одномерному минимуму шага
+$j-1$; для $j = 0$ — сразу из $h^0 = -\nabla\varphi(x^0)$), и по явной
+формуле $\gamma_j = -\scal{\nabla\varphi(x^j)}{h^j} / \scal{A h^j}{h^j}$
+имеем $\gamma_j \scal{A h^j}{h^j} = \norm{\nabla\varphi(x^j)}^2$. Итак
+$\scal{\nabla\varphi(x^{k+1})}{h^j} = 0$ для всех $j \le k$. По (в) индукции
+$\nabla\varphi(x^j) \in \operatorname{span}\{h^0,\dots,h^j\}$ для $j \le k$,
+поэтому это и есть (а) для пары $(k+1, j)$.
 
-Для (б): $\scal{A h^{k+1}}{h^j} = \scal{-\nabla\varphi(x^{k+1}) + \beta_k h^k}{A h^j}$. При $j = k$: $\scal{A h^k}{h^k} \ne 0$, а
-$\scal{\nabla\varphi(x^{k+1})}{A h^k} = 0$, так как
-$A h^k = (\nabla\varphi(x^{k+1}) - \nabla\varphi(x^k))/\gamma_k$ и оба
-скалярных произведения с $\nabla\varphi(x^{k+1})$ равны нулю по (а);
-при $j < k$: $\scal{h^k}{A h^j} = 0$ по индукции, а
+Для (б): $\scal{A h^{k+1}}{h^j} = \scal{-\nabla\varphi(x^{k+1}) + \beta_k h^k}{A h^j}$. При $j < k$: $\scal{h^k}{A h^j} = 0$ по индукции, а
 $\scal{\nabla\varphi(x^{k+1})}{A h^j} = 0$, так как
-$A h^j \in \operatorname{span}\{\nabla\varphi(x^j), \nabla\varphi(x^{j+1})\}$
-по той же телескопической формуле и (а) применимо.
+$A h^j = (\nabla\varphi(x^{j+1}) - \nabla\varphi(x^j))/\gamma_j$ — комбинация
+прошлых градиентов и (а) применимо. При $j = k$:
+$\scal{\nabla\varphi(x^{k+1})}{A h^k} = \norm{\nabla\varphi(x^{k+1})}^2/\gamma_k$, поэтому
+$$
+\scal{A h^{k+1}}{h^k} = -\tfrac{\norm{\nabla\varphi(x^{k+1})}^2}{\gamma_k} + \beta_k \scal{A h^k}{h^k} = 0,
+$$
+так как $\gamma_k \scal{A h^k}{h^k} = \norm{\nabla\varphi(x^k)}^2$ (это
+вычисление из (а) при $j = k$), а $\beta_k$ по \eqref{eq:cg} — отношение
+тех же квадратов норм:
+$$
+\beta_k = \norm{\nabla\varphi(x^{k+1})}^2 / \norm{\nabla\varphi(x^k)}^2 .
+$$
 
 (в): $h^{k+1} \in \operatorname{span}\{\nabla\varphi(x^{k+1}), h^k\}
 \subset \operatorname{span}\{\nabla\varphi(x^0), \dots,
@@ -852,7 +933,7 @@ $$
 \begin{theorem}[оценка сходимости CG]\label{thm:cg-rate}
 Для итераций \eqref{eq:cg}
 \begin{equation}\label{eq:cg-rate}
-\norm{x^k - x^*}_A \le 2\, \sqrt{\frac{L}{\mu}}\, q^k \norm{x^0 - x^*}_A,
+\norm{x^k - x^*}_A \le 2\, q^k \norm{x^0 - x^*}_A,
 \qquad
 q = \frac{\sqrt\varkappa - 1}{\sqrt\varkappa + 1},
 \end{equation}
@@ -872,10 +953,11 @@ $$
 \le \Bigl( \max_{\lambda \in [\mu, L]} \abs{p(\lambda)} \Bigr)^2 \norm{e^0}_A^2
 $$
 для любого допустимого $p$; берём чебышёвский
-$p(\lambda) = T_k(z(\lambda))/T_k(z(0))$ из раздела \ref{sec:cheb}, для
-которого максимум равен $1/T_k(\mu)$, а
-$T_k(\mu) \ge \tfrac12 \bigl(\mu + \sqrt{\mu^2 - 1}\bigr)^k \ge
-\tfrac12 \bigl(\frac{\sqrt\varkappa + 1}{\sqrt\varkappa - 1}\bigr)^k$.
+$p(\lambda) = T_k(z(\lambda))/T_k(z(0))$ из раздела \ref{sec:cheb}. Его
+максимум на $[\mu, L]$ равен $1/T_k(z(0))$, где $z(0) = \frac{L + \mu}{L - \mu}$, а
+$$
+T_k(z(0)) \ge \tfrac12 \Bigl( z(0) + \sqrt{z(0)^2 - 1} \Bigr)^{\!k} = \tfrac12 \Bigl( \frac{\sqrt\varkappa + 1}{\sqrt\varkappa - 1} \Bigr)^{\!k} .
+$$
 Подстановка даёт \eqref{eq:cg-rate}.
 \end{proof}
 
@@ -883,10 +965,10 @@ $T_k(\mu) \ge \tfrac12 \bigl(\mu + \sqrt{\mu^2 - 1}\bigr)^k \ge
 Оценка \eqref{eq:cg-rate} неулучшаема: любой метод, точки которого лежат
 в $x^0 + \operatorname{span}\{\nabla\varphi(x^0), \dots,
 \nabla\varphi(x^{k-1})\}$ (все методы первого порядка таковы),
-допускает задачу с $\norm{x^k - x^*}_A \ge c\, q^k$ [13]. CG совпадает с
+допускает задачу с $\norm{x^k - x^*}_A \ge c\, q^k$ [13] (Поляк). CG совпадает с
 нижней оценкой теоремы \ref{thm:lower} по порядку и потому оптимален в
 классе методов первого порядка — при том что ему не требуется знание
-спектра, в отличие от чебышёвских полуитераций \eqref{eq:cheb-rec} [02].
+спектра, в отличие от чебышёвских полуитераций \eqref{eq:cheb-rec} [2] (Голуб, Ван Лоун).
 \end{remark}
 
 # Вычислительная сторона {#sec:compute}
@@ -898,14 +980,14 @@ $T_k(\mu) \ge \tfrac12 \bigl(\mu + \sqrt{\mu^2 - 1}\bigr)^k \ge
 точность $\varepsilon$ по аргументу).**
 
 \begin{center}
-\small
+\footnotesize
 \begin{tabular}{lllll}
 \hline
 Метод & Итерации & Итерация стоит & Требует & Раздел \\
 \hline
 Градиентный, $\gamma = 1/L$ & $O(\varkappa \ln \frac1\varepsilon)$ & $1$ градиент & ничего & \ref{sec:gd} \\
 Градиентный, $\gamma^* = 2/(L+\mu)$ & $\frac\varkappa2 \ln\frac1\varepsilon$ & $1$ градиент & $\mu$, $L$ & \ref{sec:exact-rate} \\
-Наискорейший спуск & не лучше стационарного & $1$ градиент + 1D-поиск & ничего & \ref{sec:problems} \\
+Наискорейший спуск & как стационарный & $1$ градиент + 1D-поиск & ничего & \ref{sec:problems} \\
 Чебышёвские полуитерации & $\frac{\sqrt\varkappa}{2} \ln \frac2\varepsilon$ & $1$ умножение $A$ & $\mu$, $L$ & \ref{sec:cheb} \\
 Сопряжённые градиенты & $O(\sqrt\varkappa \ln \frac1\varepsilon)$ & $1$ умножение $A$ & ничего & \ref{sec:cg} \\
 Тяжёлый шарик & $O(\sqrt\varkappa \ln \frac1\varepsilon)$ локально & $1$ градиент & $\mu$, $L$ & \ref{sec:hb} \\
@@ -921,7 +1003,7 @@ $T_k(\mu) \ge \tfrac12 \bigl(\mu + \sqrt{\mu^2 - 1}\bigr)^k \ge
 одномерная минимизация по $\gamma$ даёт на квадратичной задаче тот же
 асимптотический знаменатель $(\varkappa-1)/(\varkappa+1)$, что и стационарный
 шаг $\gamma^*$ (задача 2 раздела \ref{sec:problems}; теорема с
-неравенством Канторовича — [13]). Выбор шага — не то место, где покупается
+неравенством Канторовича — [13] (Поляк)). Выбор шага — не то место, где покупается
 ускорение.
 
 \textbf{(2) Оценка $L$ на практике.} Константу $L$ часто не знают;
@@ -931,7 +1013,7 @@ $f(x - \gamma\nabla f(x)) \le f(x) - \frac{\gamma}{2}\norm{\nabla f(x)}^2$
 (оно гарантирует лемму спуска). Все оценки этого конспекта сохраняются
 с заменой $L$ на удвоенную найденную константу; автоматическая адаптация
 к неизвестной гладкости — содержание универсального градиентного спуска
-[37], §5.
+[37] (Гасников), §5.
 
 \textbf{(3) Большая размерность.} Память $O(n)$ у всех методов таблицы,
 кроме Ньютона ($O(n^2)$ на гессиан и его факторизацию); при $n$ в
@@ -968,7 +1050,7 @@ $A = \diag(L, \mu)$, $x^0 = (L^{-1/2}, \mu^{-1/2})$. Показать, что
 $\frac{d}{d\gamma} f(x^{k+1} + \gamma' h^k)\big|_{\gamma'=0} = 0$ при
 $\gamma' = 0$ даёт $\scal{\nabla f(x^{k+1})}{h^k} = 0$, а
 $h^k = -\nabla f(x^k)$. Двумерный случай даёт чередование направлений
-с углом $\arctan\sqrt\varkappa$ к осям; по неравенству Канторовича [13]
+с углом $\arctan\sqrt\varkappa$ к осям; по неравенству Канторовича [13] (Поляк)
 $$
 f(x^{k+1}) - f^* \le \Bigl( \frac{L - \mu}{L + \mu} \Bigr)^2 \bigl(f(x^k) - f^*\bigr),
 $$
@@ -1065,33 +1147,50 @@ $\rho^2 - \rho(1 + \beta - \alpha\lambda) + \beta = 0$, то есть
 \begin{equation}\label{eq:hb-rho}
 \rho_{\pm}(\lambda) = \frac{1 + \beta - \alpha \lambda \pm \sqrt{(1 + \beta - \alpha \lambda)^2 - 4\beta}}{2} .
 \end{equation}
-Дискриминант $(1 + \beta - \alpha\lambda)^2 - 4\beta$ при условиях
-\eqref{eq:hb-cond} отрицателен для $\lambda \in [\mu, L]$: функция
-$g(\lambda) = (1 + \beta - \alpha\lambda)^2$ на $[\mu, L]$ принимает
-максимум на концах, и $g(L) < 4\beta$ по условию $\alpha <
-2(1+\beta)/L$, а $g(\mu) < 4\beta$ следует из $\alpha > 0$ и
-$\beta > (1 - \alpha\mu)^2/4$... точнее: нам нужно $\max_\lambda
-\abs{\rho_\pm(\lambda)} < 1$. Для комплексных корней ($g < 4\beta$)
-$\abs{\rho_\pm}^2 = \beta < 1$. Для вещественных ($g \ge 4\beta$) оба
-корня вещественны, положительны (сумма $1 + \beta - \alpha\lambda > 0$,
-произведение $\beta > 0$), и меньший корень меньше единицы как
-$(S - \sqrt{S^2 - 4\beta})/2 < 1$ при $S = 1 + \beta - \alpha\lambda$;
-больший корень меньше единицы при $S < 1 + \beta$, то есть
-$\alpha\lambda > 0$. Итак при \eqref{eq:hb-cond} все
-$\abs{\rho_\pm(\lambda)} < 1$; знаменатель $q$ — это
-$\max_{\lambda \in [\mu, L]} \max_\pm \abs{\rho_\pm(\lambda)}$.
+Обозначим $S(\lambda) = 1 + \beta - \alpha\lambda$ и
+$D(\lambda) = S(\lambda)^2 - 4\beta$; тогда
+$\rho_\pm(\lambda) = \bigl(S(\lambda) \pm \sqrt{D(\lambda)}\bigr)/2$. По
+\eqref{eq:hb-cond} для всех $\lambda \in [\mu, L]$ выполнено
+$0 < \alpha\lambda < 2(1+\beta)$, то есть $\abs{S(\lambda)} < 1 + \beta$.
+Два случая.
 
-Оптимизация. Для комплексного случая $\abs{\rho}^2 = \beta$; для
-вещественного больший корень по модулю равен
-$\abs{1 + \beta - \alpha\lambda}$ (когда корни чисто вещественны и
-$S^2 \ge 4\beta$). Равновесие между двумя режимами достигается, когда
-оба корня при $\lambda = \mu$ и $\lambda = L$ совпадают попарно
-(двойные корни): $1 + \beta - \alpha\mu = 2\sqrt\beta$ и
-$1 + \beta - \alpha L = -2\sqrt\beta$; вычитание даёт
-$\alpha(L - \mu) = 4\sqrt\beta$; сложение: $2(1 + \beta) = \alpha(L +
-\mu)$. Решая систему, получаем $\sqrt\beta = (\sqrt{L} - \sqrt\mu)/
-(\sqrt{L} + \sqrt\mu)$ и $\alpha = 2(1+\beta)/(L+\mu) =
-4/(\sqrt{L}+\sqrt\mu)^2$ — это \eqref{eq:hb-opt}; подстановка даёт
+(1) $D(\lambda) < 0$: корни комплексны и
+$\abs{\rho_\pm}^2 = \rho_+\rho_- = \beta < 1$.
+
+(2) $D(\lambda) \ge 0$: корни вещественны и одного знака (произведение
+$\beta > 0$), причём
+$\max_\pm \abs{\rho_\pm} = \frac{\abs{S} + \sqrt{S^2 - 4\beta}}{2} \le \abs{S} < 1$,
+так как $\sqrt{S^2 - 4\beta} \le \abs{S}$.
+
+Итак при \eqref{eq:hb-cond} все $\abs{\rho_\pm(\lambda)} < 1$; знаменатель
+$q$ — это $\max_{\lambda \in [\mu, L]} \max_\pm \abs{\rho_\pm(\lambda)}$.
+
+Оптимизация. Определим $\Phi_\beta(s) = \sqrt\beta$ при
+$s \le 2\sqrt\beta$ и $\Phi_\beta(s) = \frac{s + \sqrt{s^2 - 4\beta}}{2}$
+при $s \ge 2\sqrt\beta$ ($\Phi_\beta$ непрерывна и неубывает); тогда
+$\max_\pm \abs{\rho_\pm(\lambda)} = \Phi_\beta\bigl(\abs{S(\lambda)}\bigr)$.
+Так как $\abs{S(\lambda)}$ выпукла по $\lambda$, а $\Phi_\beta$ неубывающая
+и выпуклая, максимум по $[\mu, L]$ достигается на концах отрезка, и
+$$
+q(\alpha, \beta) = \max\Bigl\{ \Phi_\beta\bigl(\abs{1 + \beta - \alpha\mu}\bigr),\ \Phi_\beta\bigl(\abs{1 + \beta - \alpha L}\bigr) \Bigr\}.
+$$
+При фиксированном $\beta$ минимум по $\alpha$ достигается при
+выравнивании величин на концах: $\abs{S(\mu)} = \abs{S(L)}$, то есть
+$\alpha = \frac{2(1+\beta)}{L+\mu}$ (одна из величин убывает по $\alpha$,
+другая возрастает). Тогда $S(\mu) = -S(L) = \frac{(1+\beta)(L-\mu)}{L+\mu}$
+и $q = \Phi_\beta\Bigl(\frac{(1+\beta)(L-\mu)}{L+\mu}\Bigr)$. Если
+$\frac{(1+\beta)(L-\mu)}{L+\mu} \le 2\sqrt\beta$, то $q = \sqrt\beta$ и
+$q$ растёт по $\beta$; если $\ge 2\sqrt\beta$, то, обозначив
+$c = \frac{L-\mu}{L+\mu} < 1$ и $s = c(1+\beta)$, имеем
+$q = \frac{1}{2}\bigl(s + \sqrt{s^2 - 4\beta}\bigr)$ и
+$2q'(\beta) = c + \frac{sc - 2}{\sqrt{s^2 - 4\beta}} < 0$, так как
+$(2 - sc)^2 - c^2(s^2 - 4\beta) = 4(1 - c^2) > 0$ — то есть $q$ убывает
+по $\beta$. Значит минимум достигается на стыке режимов:
+$\frac{(1+\beta)(L-\mu)}{L+\mu} = 2\sqrt\beta$. Решая квадратное
+уравнение относительно $\sqrt\beta$ и выбирая корень из $(0,1)$, получаем
+$\sqrt\beta = (\sqrt{L} - \sqrt\mu)/(\sqrt{L} + \sqrt\mu)$ и
+$\alpha = 2(1+\beta)/(L+\mu) = 4/(\sqrt{L}+\sqrt\mu)^2$ —
+это \eqref{eq:hb-opt}; подстановка даёт
 $\abs{\rho} = \sqrt\beta = q^*$ для всех $\lambda \in [\mu, L]$, то есть
 \eqref{eq:hb-q}.
 \end{proof}
@@ -1113,16 +1212,25 @@ $$
 
 # Ускоренный метод Нестерова {#sec:nesterov}
 
-Метод Нестерова 1983 г. (у [37] — быстрый градиентный метод, БГМ) сходится
+Метод Нестерова 1983 г. (у [37] (Гасников) — быстрый градиентный метод, БГМ) сходится
 по нижним оценкам теоремы \ref{thm:lower} глобально, для всех гладких
-выпуклых функций:
+выпуклых функций. Запишем его через вспомогательную последовательность
+$t_k$ ($t_0 = 0$, $t_1 = 1$):
 \begin{equation}\label{eq:nesterov}
 \begin{aligned}
 x^{k+1} &= y^k - \tfrac1L \nabla f(y^k), \\
-y^{k+1} &= x^{k+1} + \frac{k}{k+3}\bigl( x^{k+1} - x^k \bigr),
+y^{k+1} &= x^{k+1} + \frac{t_{k+1} - 1}{t_{k+2}}\bigl( x^{k+1} - x^k \bigr),
 \end{aligned}
-\qquad x^0 = y^0 .
+\qquad y^0 = x^0 ,
 \end{equation}
+\begin{equation}\label{eq:t-rec}
+t_{k+2} = \frac{1 + \sqrt{1 + 4 t_{k+1}^2}}{2}
+\qquad \bigl(\Longleftrightarrow\ t_{k+2}^2 - t_{k+2} = t_{k+1}^2\bigr) .
+\end{equation}
+(при $t_1 = 1$ первый шаг экстраполяции нулевой: $y^1 = x^1$; далее
+$t_k \ge \frac{k+1}{2}$ и коэффициент $\frac{t_{k+1}-1}{t_{k+2}}$ растёт
+к $1$, а у [37] (Гасников) в той же роли — практическая форма $k/(k+3)$, формула
+(1.39)).
 
 \begin{theorem}[сходимость метода Нестерова]\label{thm:nesterov}
 Пусть $f$ $L$-гладкая и выпукла, $R = \norm{x^0 - x^*}$. Тогда итерации
@@ -1130,39 +1238,35 @@ y^{k+1} &= x^{k+1} + \frac{k}{k+3}\bigl( x^{k+1} - x^k \bigr),
 \begin{equation}\label{eq:nesterov-rate}
 f(x^N) - f^* \le \frac{2 L R^2}{(N+1)^2} .
 \end{equation}
-Если дополнительно $f$ $\mu$-сильно выпукла и во второй строке
-\eqref{eq:nesterov} коэффициент $\frac{k}{k+3}$ заменён на
-$\frac{\sqrt\varkappa - 1}{\sqrt\varkappa + 1}$ с
-$\varkappa = L/\mu$, то
+Если дополнительно $f$ $\mu$-сильно выпукла, то перезапуск каждые
+$m = \lceil 4\sqrt\varkappa \rceil$ итераций (сброс экстраполяции:
+$y \leftarrow x$) даёт
 \begin{equation}\label{eq:nesterov-strong}
-f(x^N) - f^* \le \frac{L R^2}{2} \Bigl( \frac{\sqrt\varkappa - 1}{\sqrt\varkappa + 1} \Bigr)^{\!N} .
+f(x^N) - f^* \le 2 L R^2 \Bigl( \frac12 \Bigr)^{\!2 \lfloor N/m \rfloor} ,
 \end{equation}
+то есть точность $\varepsilon$ достигается за
+$N = O\bigl(\sqrt\varkappa\,\ln \tfrac{L R^2}{\varepsilon}\bigr)$ итераций.
 Обе оценки совпадают с нижними оценками теоремы \ref{thm:lower} по порядку.
 \end{theorem}
 
-\begin{proof}[Доказательство (схема подобных треугольников) [37]]
-Введём $\alpha_k > 0$ (пока свободные), $A_k = \sum_{i=0}^{k} \alpha_i$,
-$\tau_k = \alpha_{k+1}/A_{k+1} \in (0,1)$, и три последовательности:
-$y^k$ — точка оценки градиента, $x^{k+1} = y^k - \frac1L\nabla f(y^k)$ —
-градиентный шаг, и
-$$
-z^{k+1} = z^k - \alpha_{k+1} \nabla f(y^k), \qquad z^0 = x^0 .
-$$
-(метод подобных треугольников: треугольники $(z^k, z^{k+1}, x^{k+1})$ и
-$(z^k, x^k, y^k)$ подобны с коэффициентом $\tau_k$, что даёт
-$y^k = \tau_k z^k + (1 - \tau_k) x^k$.) Докажем индукцией
+\begin{proof}[Доказательство (схема подобных треугольников) [37] (Гасников)]
+Введём $A_k = t_k^2 / L$, $\alpha_{k+1} = A_{k+1} - A_k = t_{k+1} / L$
+(равенство $t_{k+1}^2 - t_k^2 = t_{k+1}$ — это соотношение
+\eqref{eq:t-rec}) и $\tau_k = \alpha_{k+1} / A_{k+1} = 1 / t_{k+1}$, а
+также последовательность $z^{k+1} = z^k - \alpha_{k+1} \nabla f(y^k)$,
+$z^0 = x^0$. Точку оценки градиента задаём подобием треугольников:
+$y^k = \tau_k z^k + (1 - \tau_k) x^k$. Докажем индукцией
 \begin{equation}\label{eq:est-seq}
 A_k \bigl(f(x^k) - f^*\bigr) + \tfrac12 \norm{z^k - x^*}^2 \le \tfrac12 \norm{x^0 - x^*}^2 .
 \end{equation}
-База $k = 0$: $A_0 (f(x^0) - f^*) \ge 0$ и $z^0 = x^0$.
+База $k = 0$: $A_0 = t_0^2/L = 0$ и $z^0 = x^0$.
 
-Шаг: пусть \eqref{eq:est-seq} верно для $k$. Оценим приращение правой
-части. Так как $\nabla f(y^k) = L(y^k - x^{k+1})$,
+Шаг. Так как $\nabla f(y^k) = L (y^k - x^{k+1})$,
 $$
 \tfrac12 \norm{z^k - x^*}^2 - \tfrac12 \norm{z^{k+1} - x^*}^2
 = \alpha_{k+1} \scal{\nabla f(y^k)}{z^k - x^*} - \tfrac{\alpha_{k+1}^2}{2} \norm{\nabla f(y^k)}^2 .
 $$
-По выпуклости $f$ (теорема \ref{thm:foc}) с $y = x^*$, $x = y^k$:
+По выпуклости $f$ (теорема \ref{thm:foc}) с $x = y^k$, $y = x^*$:
 $\scal{\nabla f(y^k)}{z^k - x^*} = \scal{\nabla f(y^k)}{z^k - y^k} +
 \scal{\nabla f(y^k)}{y^k - x^*} \ge \scal{\nabla f(y^k)}{z^k - y^k} +
 f(y^k) - f^*$. По подобию треугольников
@@ -1170,48 +1274,53 @@ $z^k - y^k = \frac{1 - \tau_k}{\tau_k}(y^k - x^k)$, и
 $$
 \scal{\nabla f(y^k)}{z^k - y^k} = \frac{1 - \tau_k}{\tau_k} \scal{\nabla f(y^k)}{y^k - x^k} \ge \frac{1 - \tau_k}{\tau_k}\bigl( f(y^k) - f(x^k) \bigr),
 $$
-где последнее неравенство — выпуклость в форме $f(x^k) \ge f(y^k) +
-\scal{\nabla f(y^k)}{x^k - y^k}$. Далее, лемма спуска (лемма
+последнее — выпуклость в форме $f(x^k) \ge f(y^k) +
+\scal{\nabla f(y^k)}{x^k - y^k}$. Лемма спуска (лемма
 \ref{lem:descent}): $f(x^{k+1}) \le f(y^k) - \frac{1}{2L}\norm{\nabla
 f(y^k)}^2$, то есть $-\frac{\alpha_{k+1}^2}{2}\norm{\nabla f(y^k)}^2 \le
--\alpha_{k+1}^2 L \bigl(f(y^k) - f(x^{k+1})\bigr)$. Собирая:
+-\alpha_{k+1}^2 L \bigl(f(y^k) - f(x^{k+1})\bigr)$. Собирая, получаем
+$$
+\begin{aligned}
+\tfrac12 \norm{z^k - x^*}^2 - \tfrac12 \norm{z^{k+1} - x^*}^2
+\ge {} & \alpha_{k+1}\bigl(f(y^k) - f^*\bigr) + \frac{1-\tau_k}{\tau_k}\alpha_{k+1}\bigl(f(y^k) - f(x^k)\bigr) \\
+& - \alpha_{k+1}^2 L \bigl(f(y^k) - f(x^{k+1})\bigr) .
+\end{aligned}
+$$
+Здесь $\alpha_{k+1}^2 L = \frac{t_{k+1}^2}{L} = A_{k+1}$ и
+$\frac{1-\tau_k}{\tau_k}\alpha_{k+1} = (t_{k+1} - 1)\frac{t_{k+1}}{L} =
+\frac{t_{k+1}^2 - t_{k+1}}{L} = \frac{t_k^2}{L} = A_k$ (оба раза —
+\eqref{eq:t-rec}), поэтому коэффициент при $f(y^k) - f^*$ сокращается до
+нуля и неравенство сворачивается в
 $$
 \tfrac12 \norm{z^k - x^*}^2 - \tfrac12 \norm{z^{k+1} - x^*}^2
-\ge \alpha_{k+1}\bigl(f(y^k) - f^*\bigr) + \frac{1-\tau_k}{\tau_k}\alpha_{k+1}\bigl(f(y^k) - f(x^k)\bigr) - \alpha_{k+1}^2 L \bigl(f(y^k) - f(x^{k+1})\bigr) .
+\ge A_{k+1} \bigl(f(x^{k+1}) - f^*\bigr) - A_k \bigl(f(x^k) - f^*\bigr),
 $$
-Перегруппируем правая часть как $A_{k+1}\bigl(f(x^{k+1}) - f^*\bigr) +
-\bigl[\alpha_{k+1} + \frac{1-\tau_k}{\tau_k}\alpha_{k+1} - \alpha_{k+1}^2
-L\bigr]\bigl(f(y^k) - f^*\bigr) - \frac{1-\tau_k}{\tau_k}\alpha_{k+1}
-\bigl(f(x^k) - f^*\bigr)$, где первое слагаемое даёт приращение левой
-части \eqref{eq:est-seq}. Коэффициент при $f(y^k) - f^*$ обращается в
-нуль при
-\begin{equation}\label{eq:alpha-cond}
-\alpha_{k+1}^2 L = A_{k+1} .
-\end{equation}
-а остаток телескопирует: $-\frac{1-\tau_k}{\tau_k}\alpha_{k+1}(f(x^k) - f^*) = -A_k(f(x^k) - f^*)$ по выбору $\tau_k = \alpha_{k+1}/A_{k+1}$.
-Тогда \eqref{eq:est-seq} переходит в $k+1$.
+что и есть шаг индукции для \eqref{eq:est-seq}.
 
-Выбор $\alpha$: условие \eqref{eq:alpha-cond} при $A_{k+1} = A_k +
-\alpha_{k+1}$ даёт квадратное уравнение $L\alpha_{k+1}^2 - \alpha_{k+1} -
-A_k = 0$, откуда $\alpha_{k+1} = \frac{1 + \sqrt{1 + 4 L A_k}}{2L}$;
-при $A_0 = 0$ это даёт $\alpha_1 = 1/L$, $A_k \ge \frac{k^2}{4L}$ (по
-индукции: $A_{k+1} = A_k + \alpha_{k+1} \ge \frac{k^2}{4L} +
-\frac{k}{2L} + \frac{1}{L} \cdot\frac{1}{2}\cdot 2 \ge \frac{(k+1)^2}{4L}$).
-Наконец, $y^k = \tau_k z^k + (1-\tau_k)x^k$ с $\tau_k = \alpha_{k+1}/A_{k+1}
-= \frac{2}{k+3}$ для выписанной рекуррентности; исключая $z^k$ (выражается
-через $y^k$ и $x^k$ из подобия), получаем вторую строку \eqref{eq:nesterov}
-с коэффициентом $\frac{k}{k+3}$. Подстановка $A_N \ge N^2/(4L)$ в
-\eqref{eq:est-seq} даёт \eqref{eq:nesterov-rate}.
+Сверка с \eqref{eq:nesterov}: исключая
+$z^k = \bigl(y^k - (1-\tau_k)x^k\bigr)/\tau_k$ из определения
+$y^{k+1} = \tau_{k+1} z^{k+1} + (1-\tau_{k+1})x^{k+1}$ и пользуясь
+$L\alpha_{k+1} = 1/\tau_k$ (снова \eqref{eq:t-rec}), получаем
+$y^{k+1} = x^{k+1} + \beta_k (x^{k+1} - x^k)$ с
+$\beta_k = \frac{\tau_{k+1}}{\tau_k}(1 - \tau_k) = \frac{t_{k+1}-1}{t_{k+2}}$.
 
-Сильно выпуклый случай: при $\mu > 0$ в \eqref{eq:est-seq}
-квадратичный член усиливается в $(1 + \mu\alpha_{k+1})$ раз, и выбор
-постоянного $\alpha_k \equiv \alpha = \frac{1}{\sqrt{\mu L}}$ даёт
-$A_N = \frac{N}{\sqrt{\mu L}}$ и геометрическую прогрессию
-\eqref{eq:nesterov-strong}; коэффициент инерции становится постоянным
-$\frac{\sqrt\varkappa - 1}{\sqrt\varkappa + 1}$. Знаменатель
-$\eqref{eq:nesterov-strong}$ по порядку равен $1 - 2/\sqrt\varkappa$;
-по аргументу сходимость идёт со знаменателем
-$\sqrt{(\sqrt\varkappa - 1)/(\sqrt\varkappa + 1)} \approx 1 - 1/\sqrt\varkappa$.
+Оценка скорости: из \eqref{eq:est-seq} верно
+$f(x^N) - f^* \le \frac{L R^2}{2 t_N^2}$, а по индукции
+$t_k \ge \frac{k+1}{2}$ (база $t_1 = 1$; шаг: $\sqrt{1 + 4t^2} \ge 2t$,
+поэтому $t_{k+2} \ge \frac{1 + 2t_{k+1}}{2} \ge \frac{k+3}{2}$), что и
+даёт \eqref{eq:nesterov-rate}.
+
+Сильно выпуклый случай — рестарты. Сильно выпуклая $f$ тем более выпукла,
+поэтому \eqref{eq:nesterov-rate} работает: за $r$ итераций из точки на
+расстоянии $\rho$ от $x^*$ невязка по функции не превосходит
+$\frac{2 L \rho^2}{(r+1)^2}$. По \eqref{eq:strong} с $x = x^*$ новое
+расстояние удовлетворяет $\rho_{\text{нов}}^2 \le \frac{2}{\mu} \cdot
+\frac{2 L \rho^2}{(r+1)^2} = \frac{4 \varkappa \,\rho^2}{(r+1)^2}$, то есть
+при $r + 1 \ge 4\sqrt\varkappa$ квадрат расстояния четвертуется. Значит,
+каждая фаза из $m = \lceil 4\sqrt\varkappa \rceil$ итераций даёт
+$f - f^* \le \frac{L}{2}\rho^2$, а квадрат расстояния уменьшается вчетверо;
+после $j = \lfloor N/m \rfloor$ фаз $f(x^N) - f^* \le \frac{L}{2} R^2
+4^{-j}$, что даёт \eqref{eq:nesterov-strong}.
 \end{proof}
 
 \begin{remark}
@@ -1219,9 +1328,15 @@ $\sqrt{(\sqrt\varkappa - 1)/(\sqrt\varkappa + 1)} \approx 1 - 1/\sqrt\varkappa$.
 \eqref{eq:hb} вычисляет градиент в текущей точке $x^k$, а
 \eqref{eq:nesterov} — в экстраполированной точке $y^k$. Из-за этой
 разницы тяжёлый шарик сходится лишь локально (контрпример с разрывным
-гессианом у [37], замечание к (1.38)), а метод Нестерова — глобально и по
-нижним оценкам. Оба метода дают знаменатель $1 - 2/\sqrt\varkappa$,
-совпадающий с нижней оценкой \eqref{eq:lower-strong} по порядку.
+гессианом у [37] (Гасников), замечание к (1.38)), а метод Нестерова — глобально и по
+нижним оценкам. По числу итераций оба метода дают знаменатель
+$1 - O(1/\sqrt\varkappa)$, совпадающий с нижней оценкой
+\eqref{eq:lower-strong} по порядку. У [37] (Гасников) нет оценки с явной константой
+для сильно выпуклого случая («с точностью до числовых множителей»):
+вместо рестартов в коде чаще ставят постоянный коэффициент
+$\frac{\sqrt\varkappa - 1}{\sqrt\varkappa + 1}$ во второй строке
+\eqref{eq:nesterov} — его поведение против теоретической кривой
+\eqref{eq:nesterov-strong} измеряет пример 3 \texttt{examples.ipynb}.
 \end{remark}
 
 # Метод Ньютона {#sec:newton}
@@ -1275,7 +1390,7 @@ $\norm{\nabla f(x^k)} \le \frac{2\mu^2}{M} q_0^{2^k}$. Остаётся пере
 $\mu$-сильной выпуклости и теореме \ref{thm:exist-unique}
 $\norm{x^k - x^*} \le \frac{2}{\mu} \norm{\nabla f(x^k)}
 \le \frac{4\mu}{M} q_0^{2^k}$. Константа улучшается до $2\mu/M$
-стандартным шагом [13], гл. 1, §5: оценка
+стандартным шагом [13] (Поляк), гл. 1, §5: оценка
 \eqref{eq:newton-key} вместе с $x^{k+1} - x^k = (x^{k+1} - x^*) -
 (x^k - x^*)$ и $\norm{H_k^{-1}} \le \mu^{-1}$ даёт по индукции
 $\norm{x^k - x^*} \le \frac{2\mu}{M} a_k$, где
@@ -1287,13 +1402,13 @@ q_0^{2^{k+1}}$ — это \eqref{eq:newton-quad}.
 \begin{remark}[существенность условия $q_0 < 1$]
 Без близости начального приближения метод Ньютона может расходиться:
 для $f(x) = \sqrt{1 + x^2}$ (выпуклая, гладкая) при больших $\abs{x^0}$
-итерации уходят на бесконечность [13]. Условие \eqref{eq:newton-start}
+итерации уходят на бесконечность [13] (Поляк). Условие \eqref{eq:newton-start}
 неработоспособно как практический критерий — $\norm{\nabla f(x^0)}$
 неизвестен до счёта; его роль — гарантия сходимости, а практический
 выбор $x^0$ — отдельная задача (глобализация: демпфированный шаг
 $x^{k+1} = x^k - \gamma_k H_k^{-1}\nabla f(x^k)$ с $\gamma_k$ из
 одномерной минимизации или правила Армихо сходится из любой точки
-сильно выпуклой задачи — [13], гл. 3, §1).
+сильно выпуклой задачи — [13] (Поляк), гл. 3, §1).
 \end{remark}
 
 \begin{theorem}[Ньютона—Канторовича]\label{thm:kantorovich}
@@ -1302,7 +1417,7 @@ $\Omega = \{x : \norm{x - x^0} \le r\}$, гессиан невырожден в 
 $\Gamma_0 = [\nabla^2 f(x^0)]^{-1}$ и
 \begin{equation}\label{eq:kant-cond}
 \norm{\Gamma_0 \nabla f(x^0)} \le \eta, \qquad
-\norm{\Gamma_0 \nabla^2 f(x)} \le K \quad (x \in \Omega), \qquad
+\norm{\Gamma_0 \bigl(\nabla^2 f(x) - \nabla^2 f(y)\bigr)} \le K \norm{x - y} \quad (x, y \in \Omega), \qquad
 h := K \eta \le \tfrac12 .
 \end{equation}
 Тогда при
@@ -1314,8 +1429,8 @@ $x^*$ уравнения $\nabla f(x) = 0$, к которому сходится
 \begin{equation}\label{eq:kant-aprior}
 \norm{x^k - x^*} \le \frac{1}{2^k}\, (2h)^{2^k} \frac{\eta}{h} .
 \end{equation}
-Решение единственно в $\Omega$, если $r < r_1 = \frac{1 + \sqrt{1-2h}}{h}\eta$
-или $r \le r_1$ при $h = 1/2$. Для модифицированного процесса
+Решение единственно в открытом шаре радиуса
+$r_1 = \frac{1 + \sqrt{1-2h}}{h}\eta$. Для модифицированного процесса
 (гессиан заморожен: $x^{k+1} = x^k - \Gamma_0 \nabla f(x^k)$) при $h < 1/2$
 $$
 \norm{x'^k - x^*} \le \frac{\eta}{h} \bigl(1 - \sqrt{1 - 2h}\bigr)^{k+1} .
@@ -1326,41 +1441,71 @@ $$
 Сведение к скалярному мажорантному уравнению. Рассмотрим вещественную
 функцию
 $$
-\psi(t) = \frac{K}{2} t^2 - t + \eta = \frac{h}{\eta} t^2 - t + \eta ,
+\psi(t) = \frac{K}{2} t^2 - t + \eta
 $$
-у неё $\psi(0) = \eta > 0$, $\psi'(0) = -1$ и корни
-$t^* = r_0$, $t^{**} = r_1$. Метод Ньютона для $\psi$ с началом $t_0 = 0$:
+— половину мажоранты $K t^2 - 2t + 2\eta$ из [22] (шаг Ньютона
+инвариантен к масштабу, поэтому множитель $1/2$ ни на что не влияет).
+У неё $\psi(0) = \eta > 0$, $\psi'(0) = -1$ и, так как $h = K\eta$,
+корни $t^* = r_0$, $t^{**} = r_1$. Метод Ньютона для $\psi$ с началом $t_0 = 0$:
 $t_{k+1} = t_k - \psi(t_k)/\psi'(t_k)$, сходится возрастающе к $t^*$ при
 $h \le 1/2$. Докажем по индукции
 \begin{equation}\label{eq:kant-major}
-\norm{x^{k+1} - x^k} \le t_{k+1} - t_k .
+\norm{x^{k+1} - x^k} \le t_{k+1} - t_k
+\quad\text{и}\quad
+\norm{x^k - x^0} \le t_k .
 \end{equation}
 База $k = 0$: $\norm{x^1 - x^0} = \norm{\Gamma_0 \nabla f(x^0)} \le \eta =
-t_1 - t_0$.
+t_1 - t_0$, а $\norm{x^0 - x^0} = 0 = t_0$.
 
-Шаг: пусть $x^k \in \Omega$ и \eqref{eq:kant-major} верно для $k-1$; тогда
+Шаг: пусть \eqref{eq:kant-major} верно для $k-1$; тогда $x^k \in \Omega$.
+По определению шага Ньютона с номером $k-1$ скобка
+$\nabla f(x^{k-1}) + \nabla^2 f(x^{k-1})(x^k - x^{k-1})$ равна нулю,
+поэтому по теореме Ньютона—Лейбница для $\nabla f$ вдоль отрезка
+$[x^{k-1}, x^k] \subset \Omega$
 $$
-x^{k+1} - x^k = \bigl[ \nabla^2 f(x^k) \bigr]^{-1} \Bigl( \int_0^1 \bigl[ \nabla^2 f(x^k) - \nabla^2 f(x^{k-1} + t(x^k - x^{k-1})) \bigr] (x^k - x^{k-1})\, dt \Bigr) .
+\Gamma_0 \nabla f(x^k) = \Gamma_0 \int_0^1 \bigl[ \nabla^2 f(x^{k-1} + t(x^k - x^{k-1})) - \nabla^2 f(x^{k-1}) \bigr] (x^k - x^{k-1})\, dt .
 $$
-Оценим норму интеграла через $K$ и липшицевость
-$\nabla^2 f$: так как $\norm{\Gamma_0 \nabla^2 f(x)} \le K$ на $\Omega$,
-обратная к $\nabla^2 f(x)$ существует и
-$\norm{[\nabla^2 f(x)]^{-1} \Gamma_0^{-1}} \le (1 - K\norm{x - x^0})^{-1}$
-по лемме о почти единичном операторе; после стандартной (громоздкой, но
-элементарной) оценки появляется мажоранта
-$\norm{x^{k+1} - x^k} \le \frac{K}{2} \frac{(t_k - t_{k-1})^2}{1 - K t_k} =
-t_{k+1} - t_k$, где равенство справа — это и есть шаг Ньютона для $\psi$
-(проверяется подстановкой $\psi$ и $\psi'$). Из \eqref{eq:kant-major}
+Оцениваем норму через \eqref{eq:kant-cond}:
+\begin{equation}\label{eq:kant-key}
+\norm{\Gamma_0 \nabla f(x^k)} \le \int_0^1 K t \norm{x^k - x^{k-1}}^2\, dt = \frac{K}{2} \norm{x^k - x^{k-1}}^2 .
+\end{equation}
+Далее, $\norm{\Gamma_0 \nabla^2 f(x^k) - I} = \norm{\Gamma_0 \bigl(\nabla^2 f(x^k) - \nabla^2 f(x^0)\bigr)} \le K \norm{x^k - x^0} \le K t_k < 1$ (по индукции $t_k \le t^*$, а $K t^* = 1 - \sqrt{1 - 2h} \le 2h \le 1$, причём для конечных $k$ неравенство строгое), значит $\nabla^2 f(x^k)$ обратим и по лемме о почти единичном операторе $\norm{[\nabla^2 f(x^k)]^{-1} \Gamma_0^{-1}} \le (1 - K t_k)^{-1}$. Следовательно
+$$
+\norm{x^{k+1} - x^k} \le \norm{[\nabla^2 f(x^k)]^{-1} \Gamma_0^{-1}}\, \norm{\Gamma_0 \nabla f(x^k)} \le \frac{1}{1 - K t_k}\, \frac{K}{2} \norm{x^k - x^{k-1}}^2 .
+$$
+Для мажорантной последовательности то же вычисление точное: формула
+Тейлора для квадратичной $\psi$ с центром в $t_{k-1}$ вместе с определением
+шага Ньютона даёт $\psi(t_k) = \frac{K}{2}(t_k - t_{k-1})^2$, и так как
+$\psi'(t_k) = K t_k - 1 < 0$,
+$$
+t_{k+1} - t_k = \frac{\psi(t_k)}{1 - K t_k} = \frac{1}{1 - K t_k}\, \frac{K}{2} (t_k - t_{k-1})^2 .
+$$
+По индукции $\norm{x^{k+1} - x^k} \le t_{k+1} - t_k$, и тогда
+$\norm{x^{k+1} - x^0} \le t_{k+1}$, что замыкает \eqref{eq:kant-major}.
+Из \eqref{eq:kant-major}
 следует, что $x^k$ фундаментальна и $\norm{x^k - x^0} \le t_k \le t^* = r_0$, то есть $x^k \in \Omega$; предел $x^*$ удовлетворяет $\nabla f(x^*) = 0$ (предельный переход в $\nabla f(x^k) + \nabla^2 f(x^k)(x^{k+1} - x^k) = 0$), а $\norm{x^k - x^*} \le t^* - t_k$. Оценка погрешности:
 решая рекуррентность для $t^* - t_k$ (она удовлетворяет той же квадратичной
 мажоранте), получаем $t^* - t_k \le \frac{1}{2^k}(2h)^{2^k}\frac{\eta}{h}$,
-то есть \eqref{eq:kant-aprior}. Единственность: если $\tilde x$ — другое
-решение в шаре, то $\norm{\tilde x - x^0} \le r$, и разностное равенство
-вместе с условиями \eqref{eq:kant-cond} даёт
-$\norm{\tilde x - x^*} < \norm{\tilde x - x^*}$ при
-$r < r_1$ — противоречие; полное рассуждение — в [22], гл. XVIII, §1.
-Модифицированный процесс мажорируется геометрической прогрессией со
-знаменателем $1 - \sqrt{1 - 2h}$ — там же, оценка (34).
+то есть \eqref{eq:kant-aprior}. Единственность: пусть $\tilde x$ — другое
+решение в шаре, $s = \norm{\tilde x - x^0} < r_1$. Из
+$0 = \Gamma_0 \nabla f(\tilde x) = \Gamma_0 \nabla f(x^0) + (\tilde x - x^0)
++ \int_0^1 R_t (\tilde x - x^0)\,dt$, где
+$R_t = \Gamma_0\bigl(\nabla^2 f\bigl(x^0 + t(\tilde x - x^0)\bigr) -
+\nabla^2 f(x^0)\bigr)$, $\norm{R_t} \le K t s$ по \eqref{eq:kant-cond},
+следует $s \le \eta + \frac{K}{2} s^2$, то есть $\psi(s) \ge 0$; корни
+$\psi$ — $r_0$ и $r_1$, поэтому $s \le r_0$. С другой стороны, для любых
+$x, y$ в шаре радиуса $\rho \le r_0$ тот же приём даёт
+$\scal{\Gamma_0 \nabla f(x) - \Gamma_0 \nabla f(y)}{x - y}
+\ge \bigl(1 - K \rho\bigr) \norm{x - y}^2$; так как
+$K r_0 = 1 - \sqrt{1 - 2h} \le 1$, оператор $\Gamma_0 \nabla f$ строго
+монотонен на открытом шаре радиуса $r_1$ (для $h = \tfrac12$, когда
+$K r_0 = 1$, — на любом меньшем концентрическом шаре). Применяя
+неравенство к паре $x^*, \tilde x$, получаем $\tilde x = x^*$.
+Модифицированный процесс мажорируется тем же приёмом со скалярной
+рекуррентностью $s^{k+1} = \eta + \frac{K}{2} (s^k)^2$, $s^0 = 0$, которая
+сходится к $t^*$ со знаменателем $1 - \sqrt{1 - 2h}$; перенос оценки на
+$\norm{x'^k - x^*}$ повторяет индукцию \eqref{eq:kant-major} (подробно —
+[22] (Канторович, Акилов), гл. XVIII, §1, оценка (34)).
 \end{proof}
 
 \begin{remark}
@@ -1368,8 +1513,13 @@ $r < r_1$ — противоречие; полное рассуждение — 
 переменных $x = C y$ значения $\eta$ и $K$ преобразуются так, что $h$
 сохраняется; современная форма теоремы формулируется непосредственно в
 аффинно-инвариантных терминах $\norm{[\nabla^2 f(x^0)]^{-1}\nabla f(x^0)}$
-и липшицевости $\norm{[\nabla^2 f(x^0)]^{-1} \nabla^2 f(x)}$ [28].
-Условие $h \le 1/2$ точно (константа $1/2$ неулучшаема) [22].
+и липшицевости $\norm{[\nabla^2 f(x^0)]^{-1}\bigl(\nabla^2 f(x) - \nabla^2 f(y)\bigr)} \le K \norm{x - y}$ [28] (Argyros, Regmi, Argyros, George).
+Условие $h \le 1/2$ точно (константа $1/2$ неулучшаема) [22] (Канторович, Акилов).
+Запись \eqref{eq:kant-cond} — перенос посылки Канторовича
+$\norm{\Gamma_0 P''(x)} \le K$ на случай $P = \nabla f$: там ограничена
+третья производная, отсюда следует липшицевость $\nabla^2 f$, которая и
+используется в доказательстве; сама теорема в [22] (Канторович, Акилов) формулируется для
+произвольного нелинейного оператора $P$.
 \end{remark}
 
 # Условная оптимизация {#sec:constrained}
@@ -1455,26 +1605,37 @@ f(x^N) - f^* \le \frac{L R^2}{2N} .
 
 \begin{proof}
 Обозначим $y^k = x^k - \frac1L\nabla f(x^k)$, так что $x^{k+1} = \proj_Q(y^k)$.
-По лемме спуска (лемма \ref{lem:descent})
-$f(x^{k+1}) \le f(y^k) \le f(x^k) - \frac{1}{2L}\norm{\nabla f(x^k)}^2$
-(первая неравенство: $x^{k+1}$ минимум на $Q$, $y^k$ может быть вне $Q$? —
-нет, применяем лемму спуска непосредственно к точке $y^k$). Далее, для
-любого $z \in Q$ по неэкспансивности и \eqref{eq:proj-cosine}:
+Лемма о градиентном отображении: для любого $z \in Q$
+\begin{equation}\label{eq:grad-map}
+f(x^{k+1}) \le f(z) + \frac{L}{2}\bigl( \norm{x^k - z}^2 - \norm{x^{k+1} - z}^2 \bigr) .
+\end{equation}
+Действительно, подставляя $y^k = x^k - \frac1L \nabla f(x^k)$ в критерий
+проекции \eqref{eq:proj-crit}, получаем для любого $z \in Q$
 $$
-\norm{x^{k+1} - z}^2 \le \norm{y^k - z}^2 = \norm{x^k - z}^2 - \frac{2}{L} \scal{\nabla f(x^k)}{x^k - z} + \frac{1}{L^2}\norm{\nabla f(x^k)}^2 .
+\scal{\nabla f(x^k)}{x^{k+1} - z} \le L \scal{x^k - x^{k+1}}{x^{k+1} - z} .
 $$
-Возьмём $z = x^*$ и используем выпуклость
-($\scal{\nabla f(x^k)}{x^k - x^*} \ge f(x^k) - f^*$) и оценку
-$\frac{1}{L^2}\norm{\nabla f(x^k)}^2 \le \frac{2}{L}(f(x^k) - f(x^{k+1}))$
-из леммы спуска:
+Складываем оценку снизу $f(x^k) \le f(z) + \scal{\nabla f(x^k)}{x^k - z}$
+(выпуклость, теорема \ref{thm:foc}) и оценку сверху
+$f(x^{k+1}) \le f(x^k) + \scal{\nabla f(x^k)}{x^{k+1} - x^k} + \frac{L}{2}\norm{x^{k+1} - x^k}^2$
+(неравенство \eqref{eq:upper-par}):
 $$
-\norm{x^{k+1} - x^*}^2 \le \norm{x^k - x^*}^2 - \frac{2}{L}\bigl(f(x^k) - f^*\bigr) + \frac{2}{L}\bigl(f(x^k) - f(x^{k+1})\bigr) .
+f(x^{k+1}) \le f(z) + \scal{\nabla f(x^k)}{x^{k+1} - z} + \frac{L}{2}\norm{x^{k+1} - x^k}^2 ,
 $$
-Перегруппируем и просуммируем по $k = 0, \dots, N-1$; телескопирование
-даёт $\frac{2}{L}\sum_{k=0}^{N-1}\bigl(f(x^{k+1}) - f^*\bigr) \le R^2$.
-Так как $f(x^{k+1})$ монотонно убывает (лемма спуска) и потому каждое
-слагаемое не меньше $f(x^N) - f^*$, получаем
-$\frac{2N}{L}\bigl(f(x^N) - f^*\bigr) \le R^2$, то есть \eqref{eq:pgd-rate}.
+$$
+f(x^{k+1}) \le f(z) + \frac{L}{2}\Bigl( 2\scal{x^k - x^{k+1}}{x^{k+1} - z} + \norm{x^{k+1} - x^k}^2 \Bigr) ,
+$$
+а выражение в скобках равно $\norm{x^k - z}^2 - \norm{x^{k+1} - z}^2$ по
+тождеству $2\scal{a}{b} + \norm{a}^2 = \norm{a+b}^2 - \norm{b}^2$.
+
+При $z = x^*$ лемма даёт телескоп
+$\frac{2}{L}\bigl(f(x^{k+1}) - f^*\bigr) \le \norm{x^k - x^*}^2 - \norm{x^{k+1} - x^*}^2$;
+суммирование по $k = 0, \dots, N-1$ даёт
+$$
+\frac{2}{L} \sum_{k=1}^{N} \bigl(f(x^k) - f^*\bigr) \le R^2 .
+$$
+При $z = x^k \in Q$ лемма даёт $f(x^{k+1}) \le f(x^k)$, то есть $f(x^k)$
+монотонно убывает, и потому
+$f(x^N) - f^* \le \frac1N \sum_{k=1}^N \bigl(f(x^k) - f^*\bigr) \le \frac{L R^2}{2N}$.
 \end{proof}
 
 \section{Метод Франка—Вулфа (условный градиент)}
@@ -1581,7 +1742,7 @@ $f(y) \ge f(x^*) = f(x^*) + \scal{0}{y - x^*}$, то есть $0$ — субгр
 \partial f(x^k)$. Сходимость медленнее градиентного: для $L_0$-липшицевой
 выпуклой $f$ ($\norm{g} \le L_0$ для $g \in \partial f$) усреднённая точка
 $\bar x^N$ с весами $\gamma_k$ удовлетворяет $f(\bar x^N) - f^* \le
-L_0 R / \sqrt{N}$, и оценка неулучшаема [37], §2. Медленность не
+L_0 R / \sqrt{N}$, и оценка неулучшаема [37] (Гасников), §2. Медленность не
 поправима: это цена отсутствия гладкости, а не недочёт метода.
 
 # Градиент функционала через сопряжённую задачу {#sec:adjoint}
@@ -1622,7 +1783,7 @@ $J(q + \delta q) - J(q) = \scal{J'(q)}{\delta q} + o(\norm{\delta q})$,
 Если прямая задача задана дифференциальным уравнением, сопряжённый оператор
 вычисляется через сопряжённое дифференциальное уравнение, и формула
 \eqref{eq:adjoint-formula} обретает вычислительный смысл. Пример —
-обратная задача теплопроводности с обратным временем [14], гл. 8: прямая
+обратная задача теплопроводности с обратным временем [14] (Кабанихин), гл. 8: прямая
 задача
 $$
 u_t = -u_{xx}, \quad x \in (0, l),\ t \in (0, T); \qquad u(0, t) = u(l, t) = 0; \qquad u(x, T) = q(x),
@@ -1650,7 +1811,7 @@ $J'(q) = \psi(\cdot, T)$. Цена одного градиента — одна 
 \textbf{Стохастический градиентный спуск} (англ. *SGD*) — градиентный спуск
 по случайной несмещённой оценке градиента с дисперсией $D$: для выпуклых
 гладких задач оценка $f(\bar x^N) - f^* = O(\sqrt{D} R / \sqrt{N})$ и
-неулучшаема [37], приложение; для сильно выпуклых — линейная сходимость до
+неулучшаема [37] (Гасников), приложение; для сильно выпуклых — линейная сходимость до
 $O(D/(L\mu))$-окрестности. Дисперсия снижается минибатчингом; методы
 редукции дисперсии (SVRG, SAGA) убирают плату $O(1/\sqrt N)$. Это рабочая
 лошадка вопроса 02.
@@ -1659,9 +1820,9 @@ $O(D/(L\mu))$-окрестности. Дисперсия снижается ми
 проекции на «проекцию» по дивергенции Брэгмана, определяемой выбором
 прокс-функции; для задач на симплексе заменяет $O(\sqrt{\ln n})$ штраф за
 размерность. Объявлен в заголовке колоды лекции прошлого года; вопрос 10
-его не требует, см. [37], §2.
+его не требует, см. [37] (Гасников), §2.
 
-\textbf{Универсальный градиентный спуск} [37], §5 — метод, автоматически
+\textbf{Универсальный градиентный спуск} [37] (Гасников), §5 — метод, автоматически
 настраивающийся на неизвестную степень гладкости $\nu \in [0,1]$ через
 бэктрекинг по $L$; связка с правилом выбора шага раздела \ref{sec:compute}.
 
@@ -1669,51 +1830,51 @@ $O(D/(L\mu))$-окрестности. Дисперсия снижается ми
 $x^{k+1} = x^k - \gamma_k H_k \nabla f(x^k)$ с матрицами $H_k$,
 обновляемыми по разностям градиентов так, чтобы выполнялось
 квазиньютоновское условие $H_{k+1} y^k = p^k$; на квадратичной задаче
-сходятся за $n$ шагов, на общей — сверхлинейно [12], гл. 5, §2; [13],
+сходятся за $n$ шагов, на общей — сверхлинейно [12] (Сухарев, Тимохов, Федоров), гл. 5, §2; [13] (Поляк),
 гл. 3, §3.
 
 \textbf{Помехи.} При зашумлённом градиенте нижняя оценка асимптотически
 $O(1/k)$ для выпуклых и геометрическая для сильно выпуклых, и градиентный
-метод с убывающим шагом асимптотически оптимален [13], гл. 4, §5 —
+метод с убывающим шагом асимптотически оптимален [13] (Поляк), гл. 4, §5 —
 вопрос для функционала качества в условиях шумных измерений.
 
 # Источники {#sec:sources}
 
 Основные источники вопроса. Локаторы (страницы) даны в README этого вопроса.
 
-\textbf{[12]} — условия оптимальности первого и второго порядка, выпуклость
+\textbf{[12]} (Сухарев, Тимохов, Федоров) — условия оптимальности первого и второго порядка, выпуклость
 и сильная выпуклость, субдифференциал, метод сопряжённых направлений и
 квазиньютоновские схемы. Теорема о существовании и единственности
 минимума и условия второго порядка — по этой книге.
 
-\textbf{[13]} — теория скорости сходимости градиентного спуска (точная
+\textbf{[13]} (Поляк) — теория скорости сходимости градиентного спуска (точная
 оценка и оптимальный шаг), локальная квадратичная сходимость Ньютона с
 контрпримерами, наискорейший спуск и неравенство Канторовича, метод
 тяжёлого шарика, сопряжённые градиенты и их оптимальность, нижние оценки
 при помехах. Теоремы \ref{thm:exact-rate}, \ref{thm:hb},
 \ref{thm:newton-local} и разбор наискорейшего спуска — по этой книге.
 
-\textbf{[37]} — градиентный спуск с постоянным шагом и оценки в трёх
+\textbf{[37]} (Гасников) — градиентный спуск с постоянным шагом и оценки в трёх
 режимах (теорема \ref{thm:gd-conv}), нижние оценки (теорема
 \ref{thm:lower}), метод Нестерова и метод подобных треугольников
 (теорема \ref{thm:nesterov}), субградиентный метод и стохастический
 спуск, проекция градиента, бэктрекинг. Материал лекции курса прошлого
 года.
 
-\textbf{[02]} — чебышёвские полуитерации и устойчивая трёхчленная
+\textbf{[02]} (Голуб, Ван Лоун) — чебышёвские полуитерации и устойчивая трёхчленная
 рекуррентность (теорема \ref{thm:cheb}), метод сопряжённых градиентов и
 оценка в энергетической норме.
 
-\textbf{[09]} — чебышёвский набор итерационных параметров: оценка $q_n$
+\textbf{[09]} (Самарский, Гулин) — чебышёвский набор итерационных параметров: оценка $q_n$
 и число итераций $n_0(\varepsilon)$ (следствие теоремы
 \ref{thm:cheb}), неустойчивость множительной формы (замечание
 \ref{rem:cheb-stable}).
 
-\textbf{[22]} — теорема Ньютона—Канторовича с полным доказательством
+\textbf{[22]} (Канторович, Акилов) — теорема Ньютона—Канторовича с полным доказательством
 (теорема \ref{thm:kantorovich}), точность константы $1/2$.
 
-\textbf{[28]} — аффинно-инвариантная форма теоремы Канторовича и таблица
+\textbf{[28]} (Argyros, Regmi, Argyros, George) — аффинно-инвариантная форма теоремы Канторовича и таблица
 оценок погрешности (замечание к теореме \ref{thm:kantorovich}).
 
-\textbf{[14]} — градиент функционала невязки через сопряжённую задачу
+\textbf{[14]} (Кабанихин) — градиент функционала невязки через сопряжённую задачу
 (теорема \ref{thm:adjoint} и пример обратной задачи теплопроводности).
