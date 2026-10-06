@@ -26,12 +26,12 @@ set -euo pipefail
 
 SOURCE="${1:?repo url or archive}"; shift
 OUT_BASENAME="${1:?out basename}"; shift
-MD_SUBDIR=""
+MD_SUBDIRS=()
 PDF_GLOB=""
 HEADER_FILE=""
 while [ $# -gt 0 ]; do
     case "$1" in
-        --md) MD_SUBDIR="$2"; shift 2;;
+        --md) MD_SUBDIRS+=("$2"); shift 2;;
         --with-pdfs) PDF_GLOB="$2"; shift 2;;
         --header) HEADER_FILE="$2"; shift 2;;
         *) echo "неизвестная опция: $1" >&2; exit 2;;
@@ -91,10 +91,11 @@ elif [ "$MODE" = archive ]; then
         < <(find "$SRC" -name '*.pdf' | LC_ALL=C sort)
 fi
 
-if [ "$MODE" = repo ] && [ -n "$MD_SUBDIR" ]; then
-    python3 - "$SRC" "$MD_SUBDIR" "$TMP" <<'PY'
+if [ "$MODE" = repo ] && [ "${#MD_SUBDIRS[@]}" -gt 0 ]; then
+    python3 - "$SRC" "$TMP" "${MD_SUBDIRS[@]}" <<'PY'
 import os, re, subprocess, sys, json
-root, sub, tmp = sys.argv[1], sys.argv[2], sys.argv[3]
+root, tmp = sys.argv[1], sys.argv[2]
+subs = sys.argv[3:]
 ENV = re.compile(r"\\begin\{(align\*?|equation\*?|gather\*?|multline\*?)\}")
 SPAN = re.compile(r"\$\$(.+?)\$\$")
 
@@ -191,12 +192,17 @@ def sanitize(t):
     return "\n".join(out)
 
 mds = []
-base = os.path.join(root, sub)
-for dp, dns, fns in os.walk(base):
-    dns.sort()
-    for fn in sorted(fns):
-        if fn.endswith(".md"):
-            mds.append(os.path.join(dp, fn))
+seen = set()
+for sub in subs:
+    base = os.path.join(root, sub)
+    for dp, dns, fns in os.walk(base):
+        dns.sort()
+        for fn in sorted(fns):
+            if fn.endswith(".md"):
+                full = os.path.realpath(os.path.join(dp, fn))
+                if full not in seen:
+                    seen.add(full)
+                    mds.append(os.path.join(dp, fn))
 os.makedirs(os.path.join(tmp, "mdpdf"), exist_ok=True)
 ok, fail = [], []
 for f in mds:
@@ -221,7 +227,7 @@ fi
 # упорядоченный список всех PDF для содержания и склейки
 : > "$TMP/pdf_list.txt"
 for p in "${PDFS[@]}"; do printf '%s\n' "$p" >> "$TMP/pdf_list.txt"; done
-if [ -n "$MD_SUBDIR" ]; then
+if [ "${#MD_SUBDIRS[@]}" -gt 0 ]; then
     while IFS= read -r p; do printf '%s\n' "$p" >> "$TMP/pdf_list.txt"; done \
         < <(find "$TMP/mdpdf" -name '*.pdf' | LC_ALL=C sort)
 fi
