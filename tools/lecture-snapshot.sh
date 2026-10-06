@@ -18,6 +18,13 @@
 #   --header FILE      markdown-фрагмент для шапки страницы содержания
 #                      (манифест: URL, коммит, дата, оговорки). В режиме архива
 #                      без этой опции шапкой служит manifest.txt архива
+#   --order 'PAT|||НАЗВАНИЕ РАЗДЕЛА' / --order-file FILE
+#                      логический порядок сборника: паттерн (fnmatch относительно
+#                      корня репо) + название раздела содержания; повторяемо.
+#                      Раздел накапливает свои файлы в порядке своих паттернов,
+#                      внутри — по имени; непокрытые файлы идут в «Прочее».
+#                      Без --order файлы идут в алфавитном порядке (НЕЖЕЛАТЕЛЬНО:
+#                      алфавит выносит applications/exercises перед theory).
 #
 # Имя результата: deps/OUT_BASENAME_ГГГГ-ММ-ДД_<short7>.pdf
 # Зависимости: git + python3-venv + cairosvg (только режим репо); pandoc+xelatex
@@ -29,11 +36,14 @@ OUT_BASENAME="${1:?out basename}"; shift
 MD_SUBDIRS=()
 PDF_GLOB=""
 HEADER_FILE=""
+ORDER_SPECS=()
 while [ $# -gt 0 ]; do
     case "$1" in
         --md) MD_SUBDIRS+=("$2"); shift 2;;
         --with-pdfs) PDF_GLOB="$2"; shift 2;;
         --header) HEADER_FILE="$2"; shift 2;;
+        --order) ORDER_SPECS+=("$2"); shift 2;;
+        --order-file) ORDER_SPECS+=("$(cat "$2")"); shift 2;;
         *) echo "неизвестная опция: $1" >&2; exit 2;;
     esac
 done
@@ -62,6 +72,22 @@ else
     REPO_URL="$SOURCE"
 fi
 OUT="deps/${OUT_BASENAME}_${SNAP_DATE}_${COMMIT}.pdf"
+
+# спецификация порядка: паттерн<TAB>название раздела (--order строками
+# 'паттерн|||название', --order-file — готовым TSV)
+: > "$TMP/order.tsv"
+for spec in "${ORDER_SPECS[@]}"; do
+    printf '%s\n' "$spec" | while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        case "$line" in
+            *"$(printf '\t')"*) printf '%s\n' "$line" >> "$TMP/order.tsv";;
+            *)  pat="${line%%|||*}"
+                label="${line#*|||}"
+                [ "$label" = "$line" ] && label="Раздел $pat"
+                printf '%s\t%s\n' "$pat" "$label" >> "$TMP/order.tsv";;
+        esac
+    done
+done
 
 # svg → pdf (картинки md-файлов); cairosvg в одноразовом venv
 if [ "$MODE" = repo ]; then
@@ -224,63 +250,99 @@ if fail:
 PY
 fi
 
-# упорядоченный список всех PDF для содержания и склейки
+# упорядоченный список всех PDF для содержания и склейки: путь<TAB>источник
 : > "$TMP/pdf_list.txt"
-for p in "${PDFS[@]}"; do printf '%s\n' "$p" >> "$TMP/pdf_list.txt"; done
+for p in "${PDFS[@]}"; do printf '%s\t%s\n' "$p" "${p#"$SRC"/}" >> "$TMP/pdf_list.txt"; done
 if [ "${#MD_SUBDIRS[@]}" -gt 0 ]; then
-    while IFS= read -r p; do printf '%s\n' "$p" >> "$TMP/pdf_list.txt"; done \
-        < <(find "$TMP/mdpdf" -name '*.pdf' | LC_ALL=C sort)
-fi
-
-# содержание: шапка + таблица с накопленными номерами страниц
-python3 - "$TMP" "$REPO_URL" "$COMMIT" "$SNAP_DATE" "$HEADER_FILE" <<'PY'
-import re, subprocess, sys, json, os
-tmp, url, commit, snap, header_file = sys.argv[1:6]
-pdfs = [l.strip() for l in open(os.path.join(tmp, "pdf_list.txt")) if l.strip()]
-title_of = {}
+    python3 - "$TMP" <<'PY'
+import json, os, sys
+tmp = sys.argv[1]
+rel_of = {}
 mcj = os.path.join(tmp, "md_convert.json")
 if os.path.exists(mcj):
-    # режим репо: заголовки из сконвертированных md (ok-список)
     for rel in json.load(open(mcj))["ok"]:
-        title = None
-        for ln in open(os.path.join(tmp, "src", rel), encoding="utf-8",
-                       errors="ignore"):
-            m = re.match(r"^#\s+(.+)", ln.strip())
-            if m:
-                title = re.sub(r"\{#[^}]+\}", "", m.group(1)).strip(); break
-        title_of[rel[:-3].replace("/", "__") + ".pdf"] = title or rel
-# общий случай (режим архива): ищем md-исходник по имени PDF с любым префиксом
-for dp, _, fns in os.walk(os.path.join(tmp, "src")):
-    for fn in fns:
-        if not fn.endswith(".md"):
-            continue
-        full = os.path.join(dp, fn)
-        rel = os.path.relpath(full, os.path.join(tmp, "src"))
-        parts = rel[:-3].split("/")
-        keys = ["__".join(parts[i:]) + ".pdf" for i in range(len(parts))]
-        title = None
-        for ln in open(full, encoding="utf-8", errors="ignore"):
-            m = re.match(r"^#\s+(.+)", ln.strip())
-            if m:
-                title = re.sub(r"\{#[^}]+\}", "", m.group(1)).strip(); break
-        if title:
-            for k in keys:
-                title_of.setdefault(k, title)
+        name = rel[:-3].replace("/", "__") + ".pdf"
+        rel_of[name] = rel
+with open(os.path.join(tmp, "pdf_list.txt"), "a") as f:
+    for name in sorted(rel_of):
+        f.write(f"{os.path.join(tmp, 'mdpdf', name)}\t{rel_of[name]}\n")
+PY
+fi
+
+# содержание: шапка + разделы в логическом порядке + накопленные страницы.
+# Содержание строится из человекочитаемых названий тем (без имён файлов):
+# название = первый заголовок md, иначе prettified basename; группировка —
+# по спецификации order.tsv; непокрытые файлы — в «Прочее».
+python3 - "$TMP" "$REPO_URL" "$COMMIT" "$SNAP_DATE" "$HEADER_FILE" <<'PY'
+import fnmatch, re, subprocess, sys, os
+tmp, url, commit, snap, header_file = sys.argv[1:6]
+entries = []
+for line in open(os.path.join(tmp, "pdf_list.txt"), encoding="utf-8"):
+    line = line.rstrip("\n")
+    if not line: continue
+    pdf, rel = line.split("\t")
+    entries.append({"pdf": pdf, "rel": rel})
+orders = []
+for line in open(os.path.join(tmp, "order.tsv"), encoding="utf-8"):
+    line = line.rstrip("\n")
+    if not line: continue
+    pat, label = line.split("\t")
+    orders.append((pat, label))
+def pretty(rel):
+    base = os.path.basename(rel)
+    stem = re.sub(r"\.(md|pdf)$", "", base)
+    if stem.lower() in ("index", "readme", "404"):
+        stem = os.path.basename(os.path.dirname(rel)) or stem
+    return re.sub(r"\s+", " ", stem.replace("_", " ")).strip()
+def heading(rel, src_root):
+    if not rel.endswith((".md", ".markdown")):
+        return None
+    path = os.path.join(src_root, rel)
+    if not os.path.exists(path): return None
+    for ln in open(path, encoding="utf-8", errors="ignore"):
+        m = re.match(r"^#\s+(.+)", ln.strip())
+        if m:
+            t = re.sub(r"\{#[^}]+\}", "", m.group(1)).strip()
+            return t if 0 < len(t) <= 80 else None
+    return None
+src_root = os.path.join(tmp, "src")
+for e in entries:
+    e["name"] = heading(e["rel"], src_root) or pretty(e["rel"])
+    e["sec"], e["sub"] = len(orders), 0
+    for i, (pat, _label) in enumerate(orders):
+        if fnmatch.fnmatch(e["rel"], pat):
+            e["sec"], e["sub"] = i, i
+            break
+sec_label = {}
+for i, (_pat, label) in enumerate(orders):
+    sec_label.setdefault(i, label)
+orphan = [e for e in entries if e["sec"] == len(orders)]
+groups = []
+for i in sorted(sec_label):
+    groups.append((sec_label[i], sorted((e for e in entries if e["sec"] == i),
+                                        key=lambda e: (e["sub"], e["name"].lower()))))
+if orphan:
+    groups.append(("Прочее", sorted(orphan, key=lambda e: e["name"].lower())))
 lines = []
 if header_file and os.path.exists(header_file):
     lines.append(open(header_file, encoding="utf-8").read().rstrip())
 lines += ["# Содержание", "",
-          f"Снимок: {url}, коммит {commit}; собран {snap}.", "",
-          "| Раздел | Файл | Страница |", "|---|---|---|"]
+          f"Снимок: {url}, коммит {commit}; собран {snap}.", ""]
+ordered = []
 page = 1
-for pdf in pdfs:
-    base = os.path.basename(pdf)
-    info = subprocess.run(["pdfinfo", pdf], capture_output=True, text=True).stdout
-    n = int(re.search(r"Pages:\s+(\d+)", info).group(1))
-    title = title_of.get(base, base[:-4])
-    lines.append(f"| {title.replace('|', '/')} | {base} | с. {page} |")
-    page += n
+for label, items in groups:
+    lines.append(f"**{label}**")
+    lines += ["", "| Тема | Страница |", "|---|---|"]
+    for e in items:
+        lines.append(f"| {e['name'].replace('|', '/')} | с. {page} |")
+        ordered.append(e["pdf"])
+        info = subprocess.run(["pdfinfo", e["pdf"]],
+                              capture_output=True, text=True).stdout
+        page += int(re.search(r"Pages:\s+(\d+)", info).group(1))
+    lines.append("")
 open(os.path.join(tmp, "toc.md"), "w", encoding="utf-8").write("\n".join(lines) + "\n")
+with open(os.path.join(tmp, "pdf_list.txt"), "w") as f:
+    f.write("\n".join(ordered) + "\n")
 PY
 
 pandoc "$TMP/toc.md" -o "$TMP/toc.pdf" --pdf-engine=xelatex \

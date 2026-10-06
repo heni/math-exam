@@ -1,0 +1,11 @@
+README.md	Введение: сайт fmin.xyz
+docs/theory/*	Теория: выпуклый анализ и оптимальность
+docs/methods/line_search/*	Линейный поиск
+docs/methods/fom/*	Методы первого порядка
+docs/methods/adaptive_metrics/*	Адаптивные метрики и квазиньютоновские методы
+docs/methods/zom/*	Методы нулевого порядка
+docs/exercises/*	Задачи и упражнения
+docs/applications/*	Приложения
+docs/materials/*	Дополнительные материалы
+docs/benchmarks/*	Бенчмарки
+docs/visualizations/*	Визуализации
