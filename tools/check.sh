@@ -178,10 +178,13 @@ echo "== 8. Ссылки на литературу: [N] против набор�
 python3 - <<'PYCHK'
 import re,glob,os,sys
 fail=0
-# 1) номера работ в наборе
+# 1) номера работ в наборе. deps/ держит и ненумерованные снимки (курсы,
+#    архивы) — в согласование идут только файлы схемы NN_автор_...;
+#    библиографической записи без номера не бывает.
 works=set()
 for f in glob.glob('deps/*.pdf')+glob.glob('deps/*.djvu'):
-    works.add(os.path.basename(f).split('_')[0])
+    m=re.match(r'^(\d+)_', os.path.basename(f))
+    if m: works.add(m.group(1))
 # 2) номера в списке литературы
 src=open('docs/sources.md',encoding='utf8').read()
 a=src.index('## Список литературы'); b=src.index('\n## ',a+5)
