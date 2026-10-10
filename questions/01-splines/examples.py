@@ -34,7 +34,7 @@ from numpy.polynomial import polynomial as P
 
 SEED = 20261010
 
-FIGDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures")
+FIGDIR = "figures"
 
 # PDF metadata carries a creation timestamp, so an unchanged figure gets new
 # bytes on every rebuild and `git diff` stops telling content from clock.
