@@ -171,7 +171,8 @@ g(\omega)\, e^{i\omega t}\, d\omega
    при $t \ge 0$.
 
 Нижняя грань $a_0$ всех показателей $a$, для которых выполнено условие 3,
-называется \textbf{показателем роста} функции $f$.
+называется \textbf{показателем роста} функции $f$ (в литературе по
+операционному исчислению — абсциссой абсолютной сходимости).
 \end{definition}
 
 \begin{definition}\label{def:laplace}
@@ -458,7 +459,7 @@ $|x| \le \delta$ (непрерывность в $t$; $\varepsilon'$ — прои
 $$
 |(f*\theta_\varepsilon)(t) - f(t)|
 \le \varepsilon' \int_{|x|\le\delta}\theta_\varepsilon +
-2 \sup_{|x|\le\delta}|f| \cdot \int_{|x|>\delta}\theta_\varepsilon
+|f(t)| \int_{|x|>\delta}\theta_\varepsilon
 + \int_{|x|>\delta} |f(t-x)|\,\theta_\varepsilon(x)\,dx .
 $$
 Первый член не превосходит $\varepsilon'$; второй стремится к нулю по
@@ -482,8 +483,13 @@ $[a,b]$ принадлежит $L_1$, но его образ (лемма
 \ref{lem:indicator-transform}) не интегрируем, и равенство
 \eqref{eq:ft-inverse} в классическом смысле невозможно — ряд и интеграл
 Фурье разрывной функции требуют обобщённых функций [34]. Непрерывность в
-точке применения формулы нужна: в точке скачка интеграл обращения сходится к
-среднему односторонних пределов, а не к значению функции.
+точке применения формулы нужна: если в точке $t$ у $f$ есть конечные
+односторонние пределы, то тот же приём с разбиением интеграла по $|x|
+\le \delta$ и $|x| > \delta$ даёт $(f * \theta_\varepsilon)(t) \to
+\tfrac12\bigl(f(t-0) + f(t+0)\bigr)$ — вклад разрыва $\pm\tfrac12
+\bigl(f(t+0) - f(t-0)\bigr) \int_{x > 0} \theta_\varepsilon(x)\,dx$
+на двух полуосях сокращается по чётности ядра, а непрерывные куски слева и
+справа обрабатываются как в доказательстве.
 \end{remark}
 
 Теперь главная теорема о квадратичной теории — изометрия в $L_2$.
@@ -628,7 +634,11 @@ $$
 ниже формулы пересчитаны, и проверка каждой — подстановка
 $\hat f_{\text{без}} = \sqrt{2\pi}\,\hat f$. Теорема верна и для $f \in L_2$,
 $g \in L_1$ (тогда $f*g \in L_2$ и $\norm{f*g}_2 \le \norm{f}_2\norm{g}_1$);
-вывод тот же с заменой теоремы Фубини на оценку через $|f|^2$.
+вывод — через срезки $f_A = f \cdot \mathbb I_{[-A,A]} \in L_1 \cap
+L_2$: для них формула уже доказана, $f_A * g \to f * g$ в $L_2$ по
+неравенству $\norm{f_A * g - f * g}_2 \le \norm{f_A - f}_2 \, \norm{g}_1$,
+а правая часть сходится в $L_2$ по непрерывности преобразования Фурье на
+$L_2$ (теорема \ref{thm:plancherel}).
 \end{remark}
 
 # Преобразование Лапласа {#sec:laplace}
@@ -823,13 +833,17 @@ $f \dashv F$ и $f, f'$ — оригиналы следует $f' \dashv sF(s) -
 5. Функция $\varphi(t) = \int_0^t f(\tau)d\tau$ удовлетворяет условию
 роста: при $a_0 < 0$ имеем $|\varphi(t)| \le M\int_0^t e^{a_0\tau}d\tau
 \le M/|a_0|$, при $a_0 = 0$ — $|\varphi(t)| \le Mt \le M e^{\delta t}$,
-при $a_0 > 0$ — $|\varphi(t)| \le \frac{M}{a_0}e^{a_0 t}$. Так как
-$\varphi' = f$ почти всюду и $\varphi(+0) = 0$, по лемме
-\ref{lem:derivative-original} $\mathcal L\{f\}(s) = s\,\mathcal
-L\{\varphi\}(s)$, откуда $\mathcal L\{\varphi\}(s) = F(s)/s$ при
-$\operatorname{Re} s > \max(a_0, 0)$ (условие $\operatorname{Re} s > 0$
-нужно, чтобы $\varphi$ удовлетворяла условию роста с показателем
-$\max(a_0, 0)$).
+при $a_0 > 0$ — $|\varphi(t)| \le \frac{M}{a_0}e^{a_0 t}$. При $\operatorname{Re} s > \max(a_0, 0)$ по теореме Фубини—Тонелли
+(двойной интеграл от $|f(\tau)| e^{-\operatorname{Re} s\, t}$ по полосе
+$0 \le \tau \le t$ равен $\frac{1}{\operatorname{Re} s}
+\int_0^\infty |f(\tau)| e^{-\operatorname{Re} s\, \tau}d\tau <
+\infty$)
+$$
+\mathcal L\{\varphi\}(s) = \int_0^\infty f(\tau)
+\Bigl(\int_\tau^\infty e^{-st}\,dt\Bigr)d\tau = \frac{F(s)}{s} .
+$$
+Условие $\operatorname{Re} s > 0$ здесь же нужно, чтобы $\varphi$
+удовлетворяла условию роста с показателем $\max(a_0, 0)$.
 
 8. Оценим свёртку: при $a \ne b$
 $$
@@ -911,8 +925,15 @@ C(1+|s|)^{-1-\delta}$ на прямой $\operatorname{Re} s = \sigma_1$. Без
 \eqref{eq:mellin-cond} проверяется непосредственно. Принципиально, что
 прямую $\operatorname{Re} s = \sigma_1$ можно брать любую правее $a_0$:
 интеграл не зависит от $\sigma_1$, так как подынтегральная функция
-голоморфна между любыми двумя такими прямыми и оценка
-\eqref{eq:laplace-estimate} позволяет деформировать контур.
+голоморфна между любыми двумя такими прямыми, а интегралы по горизонтальным
+коннекторам прямоугольника $[\sigma_1, \sigma_2] \times [-\Omega,
+\Omega]$ стремятся к нулю при $\Omega \to \infty$, так как
+$F(\sigma + i\omega) \to 0$ равномерно по $\sigma \in [\sigma_1,
+\sigma_2]$ (лемма Римана—Лебега \ref{lem:riemann-lebesgue} для
+$g_\sigma(u) = f(u) e^{-\sigma u}$: $|g_\sigma| \le |f|
+e^{-\sigma_1 u}$ при $\sigma \ge \sigma_1$, а последняя функция
+интегрируема, так что аппроксимация $f$ ступенчатыми даёт сходимость
+образов равномерно по $\sigma$).
 \end{remark}
 
 Из формулы Меллина получается вторая пара
@@ -921,7 +942,7 @@ C(1+|s|)^{-1-\delta}$ на прямой $\operatorname{Re} s = \sigma_1$. Без
 \begin{corollary}[о произведении оригиналов]\label{cor:product}
 Пусть $f, g$ — оригиналы, $F, G$ — их изображения и
 $\int_{-\infty}^{\infty} |F(\sigma_1 + i\omega)|\,d\omega < \infty$ при
-некотором $\sigma_1 > a_0$. Тогда при $\operatorname{Re} s > a_0 + b_0$
+некотором $\sigma_1 > a_0$. Тогда при $\operatorname{Re} s > \sigma_1 + b_0$
 \begin{equation}\label{eq:product}
 f(t)\,g(t) \dashv \frac{1}{2\pi i}
 \int_{\sigma_1 - i\infty}^{\sigma_1 + i\infty} F(q)\,G(s - q)\,dq .
@@ -940,6 +961,15 @@ i\infty}^{\sigma_1 + i\infty} F(q) \Bigl( \int_0^\infty g(t)
 e^{-(s-q)t}\,dt \Bigr) dq = \frac{1}{2\pi i}\int F(q)\,G(s-q)\,dq .
 $$
 \end{proof}
+
+\begin{remark}
+Заявленная область зависит от выбранной прямой: условие Меллина
+предположено для одного $\sigma_1$. Если оно выполнено для всякого
+$\sigma_1' > a_0$ (например, $|F|$ убывает на вертикалях равномерно по
+$\sigma_1'$), то, выбирая $\sigma_1'$ между $a_0$ и
+$\operatorname{Re} s - b_0$, получаем \eqref{eq:product} во всей
+полуплоскости $\operatorname{Re} s > a_0 + b_0$.
+\end{remark}
 
 Теперь вся машина собирается в схему решения задачи Коши для линейного
 уравнения с постоянными коэффициентами — постановка и рамка из [30]
@@ -1145,7 +1175,10 @@ $$
 $\psi_{j,k}$, $k \in \Z$, ортонормированы (теорема \ref{thm:haar-on}) и
 порождают дополнение $W_j = V_{j+1} \ominus V_j$: всякий $h \in V_{j+1}$,
 ортогональный $V_j$, имеет нулевое среднее на каждом $I_{j,k}$, а значит,
-равен $\sum_k c_k \psi_{j,k}$ с $c_k = \pm 2^{j/2}h\big|_{I_{j,k}}$.
+равен $\sum_k c_k \psi_{j,k}$ с $c_k = \scal{h}{\psi_{j,k}}$ (на
+$I_{j,k}$ функция $h$ пропорциональна $\psi_{j,k}$: её значения на
+половинах интервала противоположны по знаку, и $h = c_k\psi_{j,k}$
+почти всюду на $I_{j,k}$).
 Поэтому $P_{W_j} f = \sum_k \scal{f}{\psi_{j,k}}\psi_{j,k}$ и, так как
 проекции на взаимно ортогональные дополнения складываются,
 $$
@@ -1476,9 +1509,14 @@ $u$ как предел по норме $L_2$.
 y'(0) = s^2 Y(s) - 1$, поэтому операторное уравнение
 \eqref{eq:operator-equation}: $(s^2 + 1)Y(s) = 1$, то есть $Y(s) =
 1/(s^2+1)$. По таблице изображений (или формуле Меллина) $1/(s^2+1)
-\dashv \sin t$: действительно, $\int_0^\infty e^{-st}\sin t\,dt =
-\operatorname{Im}\int_0^\infty e^{-(s-i)t}dt = \operatorname{Im}
-\frac{1}{s-i} = \frac{1}{s^2+1}$ при $\operatorname{Re} s > 0$. По
+\dashv \sin t$: действительно, записывая $\sin t = (e^{it} -
+e^{-it})/(2i)$,
+$$
+\int_0^\infty e^{-st}\sin t\,dt = \frac{1}{2i}\Bigl(
+\frac{1}{s - i} - \frac{1}{s + i}\Bigr) = \frac{1}{s^2+1},
+\qquad \operatorname{Re} s > 0 .
+$$
+По
 теореме единственности \ref{thm:laplace-uniq} другого решения-оригинала
 нет; проверка тривиальна: $(\sin t)'' + \sin t = 0$, $\sin 0 = 0$,
 $(\sin)'(0) = 1$.
