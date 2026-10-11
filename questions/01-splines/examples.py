@@ -649,7 +649,7 @@ print(f"  контекст, max |f - interpolant|: естественный {e_n
 
 # %%
 print("\n4b. Сглаживающий сплайн и выбор alpha по LOO-CV")
-rng_4 = np.random.default_rng([SEED, 4])   # own stream: see AI.md seed rule
+rng_4 = np.random.default_rng([SEED, 4])   # own stream, independent of other draws
 sigma = 0.05
 y_noisy = f4 + sigma * rng_4.standard_normal(9)
 print("  зашумлённые данные y_i:", np.round(y_noisy, 6))
