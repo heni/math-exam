@@ -1725,6 +1725,72 @@ $$
 определим дисперсии $\sigma_t^2 = \int (t-\mu_t)^2|f(t)|^2dt$,
 $\sigma_\omega^2 = \int(\omega - \mu_\omega)^2|\hat f(\omega)|^2d\omega$.
 
+\begin{lemma}[$L_2$-производная через образ]\label{lem:l2-derivative}
+Пусть $f \in L_2(\R)$ и $\omega \hat f(\omega) \in L_2(\R)$. Тогда у
+$f$ есть представитель, абсолютно непрерывный на отрезках, с классической
+производной $f' \in L_2$ почти всюду, причём $\widehat{f'} = i\omega
+\hat f$.
+\end{lemma}
+
+\begin{proof}
+Возьмём гауссово ядро $\theta_\varepsilon$ из доказательства теоремы
+\ref{thm:ft-inverse}: $\theta_\varepsilon(x) = \frac{1}{\varepsilon}
+\theta\bigl(\frac{x}{\varepsilon}\bigr)$, $\theta(x) =
+\pi^{-1/2} e^{-x^2}$, так что $\hat\theta_\varepsilon(\omega) =
+\frac{1}{\sqrt{2\pi}} e^{-\varepsilon^2 \omega^2/4}$.
+
+Шаг 1: образ сглаженной функции. Для срезки $f_A = f\,\mathbb
+I_{[-A,A]} \in L_1 \cap L_2$ по теореме \ref{thm:convolution}
+$$
+\widehat{f_A * \theta_\varepsilon}
+= \sqrt{2\pi}\, \hat f_A\, \hat\theta_\varepsilon .
+$$
+При $A \to \infty$ слева образ стремится в $L_2$ к $\widehat{f *
+\theta_\varepsilon}$ ($f_A \to f$ в $L_2$, а свёртка с $\theta_\varepsilon
+\in L_1$ непрерывна на $L_2$), справа — к $\sqrt{2\pi}\,\hat f\,
+\hat\theta_\varepsilon$ (множитель $\hat\theta_\varepsilon$ ограничен).
+Итак,
+\begin{equation}\label{eq:smooth-image}
+\widehat{f * \theta_\varepsilon}
+= \sqrt{2\pi}\, \hat f\, \hat\theta_\varepsilon .
+\end{equation}
+
+Шаг 2: производная сглаженной функции. Функция $f * \theta_\varepsilon$
+гладка и $(f * \theta_\varepsilon)' = f * \theta_\varepsilon'$
+(дифференцирование под интегралом; $\theta_\varepsilon'$ суммируема). Тем
+же срезочным предельным переходом, с применением пункта 5 теоремы
+\ref{thm:ft-props} на каждом шаге (для $f_A * \theta_\varepsilon$ и её
+производной все $L_1$-посылки выполнены: обе гладки и убывают как ядро),
+получаем
+\begin{equation}\label{eq:smooth-derivative}
+\widehat{(f * \theta_\varepsilon)'}
+= \sqrt{2\pi}\, i\omega\, \hat f\, \hat\theta_\varepsilon .
+\end{equation}
+При $\varepsilon \to 0$ правая часть \eqref{eq:smooth-derivative}
+стремится в $L_2$ к $\sqrt{2\pi}\, i\omega \hat f$ (теорема Лебега:
+$|\hat\theta_\varepsilon| \le \frac{1}{\sqrt{2\pi}}$ и
+$\hat\theta_\varepsilon \to \frac{1}{\sqrt{2\pi}}$ поточечно,
+$\omega \hat f \in L_2$). Значит, по Парсевалю последовательность
+$(f * \theta_\varepsilon)'$ фундаментальна в $L_2$ и сходится к некоторому
+$g \in L_2$ с $\hat g = i\omega \hat f$.
+
+Шаг 3: предельный переход в ньютоновой формуле. Каждая $f_\varepsilon = f
+* \theta_\varepsilon$ гладка, и для любых $s, t$
+$$
+f_\varepsilon(t) - f_\varepsilon(s)
+= \int_s^t (f_\varepsilon)'(\tau)\, d\tau .
+$$
+При $\varepsilon \to 0$ правая часть сходится к $\int_s^t g$ равномерно по
+$s, t$ на компактах (оценка через $\sqrt{|t-s|}\,\|(f_\varepsilon)' -
+g\|_2$), а слева $f_\varepsilon \to f$ в $L_2$ по непрерывности сдвига
+(готовый пункт 3 раздела \ref{sec:given}; выкладка та же, что в $L_1$).
+Выберем последовательность $\varepsilon_n \to 0$ и точку $s$, в которой
+$f_{\varepsilon_n}(s) \to f(s)$; тогда
+$\widetilde f(t) := f(s) + \int_s^t g$ — непрерывный представитель $f$
+(он равен пределу $f_{\varepsilon_n}$ всюду и совпадает с $f$ в $L_2$-классе),
+абсолютно непрерывный, с $\widetilde f\,' = g$ почти всюду.
+\end{proof}
+
 \begin{theorem}[Гейзенберг]\label{thm:heisenberg}
 Если $f \in L_2(\R)$, $\norm{f}_2 = 1$, обе дисперсии конечны и
 $\sqrt{|t|}\,f(t) \to 0$ при $|t| \to \infty$, то
@@ -1746,15 +1812,12 @@ e^{-c(t-\mu)^2/2}, \qquad c > 0,\ b, \mu, \varphi \in \R .
 теорема \ref{thm:plancherel}). Поэтому достаточно доказать
 \eqref{eq:heisenberg} при $\mu_t = \mu_\omega = 0$.
 
-Шаг 2: ключевое тождество и регулярность. По условию конечности
-$\sigma_\omega$ имеем $\omega \hat f \in L_2$; умножение образа на
-$i\omega$ есть дифференцирование в смысле обобщённых функций, и так как
-$\omega \hat f \in L_2$, обобщённая производная $f$ — функция из
-$L_2$: $f$ абсолютно непрерывна на отрезках, классическая производная
-$f' \in L_2$ существует почти всюду и $\widehat{f'} = i\omega\hat f$.
-Тогда $\frac{d}{dt}|f(t)|^2 = f'\overline{f} + f\overline{f'}$ почти
-всюду. Так как $f \to 0$ на бесконечности,
-интегрирование по частям даёт
+Шаг 2: ключевое тождество. По условию конечности $\sigma_\omega$ имеем
+$\omega \hat f \in L_2$, по лемме \ref{lem:l2-derivative} $f$
+абсолютно непрерывна на отрезках, $f' \in L_2$ почти всюду и
+$\widehat{f'} = i\omega\hat f$; значит $\frac{d}{dt}|f(t)|^2 =
+f'\overline{f} + f\overline{f'}$ почти всюду. Так как $f \to 0$ на
+бесконечности, интегрирование по частям даёт
 $$
 \int_{-\infty}^{\infty} t\,\frac{d}{dt}|f(t)|^2\,dt
 = \Bigl[t\,|f(t)|^2\Bigr]_{-\infty}^{\infty} -
