@@ -786,8 +786,8 @@ $\operatorname{Re} s > \max(a_0, b_0)$;
 \item \textbf{подобие:} $f(\lambda t) \dashv \frac{1}{\lambda}
 F\bigl(\frac{s}{\lambda}\bigr)$ при $\lambda > 0$,
 $\operatorname{Re} s > \lambda a_0$;
-\item \textbf{дифференцирование оригинала:} если $f, f', \dots, f^{(n)}$
-— оригиналы, то
+\item \textbf{дифференцирование оригинала:} если $f$ кусочно гладкая и
+$f, f', \dots, f^{(n)}$ — оригиналы, то
 $$
 f^{(n)}(t) \dashv s^n F(s) - s^{n-1} f(+0) - s^{n-2} f'(+0) - \dots -
 f^{(n-1)}(+0),
@@ -1746,11 +1746,14 @@ e^{-c(t-\mu)^2/2}, \qquad c > 0,\ b, \mu, \varphi \in \R .
 теорема \ref{thm:plancherel}). Поэтому достаточно доказать
 \eqref{eq:heisenberg} при $\mu_t = \mu_\omega = 0$.
 
-Шаг 2: ключевое тождество. По условию конечности $\sigma_\omega$ имеем
-$\omega \hat f \in L_2$, откуда (предельный переход с отсекающими
-$\chi_R$, как в шаге 3) $f$ абсолютно непрерывна на отрезках и
-$\frac{d}{dt}|f(t)|^2 = f'\overline{f} + f\overline{f'}$ почти всюду.
-Так как $f \to 0$ на бесконечности,
+Шаг 2: ключевое тождество и регулярность. По условию конечности
+$\sigma_\omega$ имеем $\omega \hat f \in L_2$; умножение образа на
+$i\omega$ есть дифференцирование в смысле обобщённых функций, и так как
+$\omega \hat f \in L_2$, обобщённая производная $f$ — функция из
+$L_2$: $f$ абсолютно непрерывна на отрезках, классическая производная
+$f' \in L_2$ существует почти всюду и $\widehat{f'} = i\omega\hat f$.
+Тогда $\frac{d}{dt}|f(t)|^2 = f'\overline{f} + f\overline{f'}$ почти
+всюду. Так как $f \to 0$ на бесконечности,
 интегрирование по частям даёт
 $$
 \int_{-\infty}^{\infty} t\,\frac{d}{dt}|f(t)|^2\,dt
@@ -1771,15 +1774,8 @@ $$
 1 \le 2\,\norm{f'}_2\,\norm{t f}_2 .
 $$
 Осталось заметить, что $\norm{t f}_2 = \sigma_t$ (после центрирования),
-а $\norm{f'}_2 = \sigma_\omega$: по $L_2$-версии пункта 5 теоремы
-\ref{thm:ft-props} $\widehat{f'} = i\omega\hat f$ — для $f \in L_2$
-с $f' \in L_2$ равенство получается предельным переходом: для гладких
-отсекающих $\chi_R$ с $|\chi_R'| \le C/R$ функция $f_R = f\chi_R$ вместе
-с $f_R' = f'\chi_R + f\chi_R'$ лежит в $L_1 \cap L_2$, тождество для неё
-верно в $L_1$-посылках пункта 5, а при $R \to \infty$ $f_R \to f$ и
-$f_R' \to f'$ в $L_2$ (последнее — так как $\|f\chi_R'\|_2 \le
-\frac{C}{R}\|f\|_2 \to 0$), так что обе части сходятся в $L_2$ по
-теореме \ref{thm:plancherel} — и по Парсевалю (теорема \ref{thm:plancherel}) $\norm{f'}_2 =
+а $\norm{f'}_2 = \sigma_\omega$: по шагу 2 $f' \in L_2$ и
+$\widehat{f'} = i\omega\hat f$, так что по Парсевалю (теорема \ref{thm:plancherel}) $\norm{f'}_2 =
 \norm{\widehat{f'}}_2 = \bigl(\int\omega^2|\hat f|^2\bigr)^{1/2} =
 \sigma_\omega$. Подставляя, получаем $1 \le 2\sigma_t\sigma_\omega$.
 
