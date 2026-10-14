@@ -199,6 +199,7 @@ bad={}
 # их двадцать, больше, чем в его README, и именно конспект читает экзаменатор.
 # Математика вида $[a,b]$, $[-1,1]$, $(2k-1)$ под шаблон не попадает.
 for p in (['docs/sources.md','docs/glossary.md','README.md','docs/style-guide.md']
+          + glob.glob('docs/glossary/*.md')
           + glob.glob('questions/*/README.md')
           + glob.glob('questions/*/theory.md') + glob.glob('questions/*/slides.md')):
     if not os.path.exists(p): continue
