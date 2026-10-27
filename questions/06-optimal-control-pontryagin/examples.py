@@ -19,6 +19,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
+from scipy.optimize import fsolve
 
 SEED = 20261027
 rng = np.random.default_rng(SEED)
@@ -58,12 +59,12 @@ def check_golden(name, value, tol=TOL):
 #
 # **Вопрос** (пример \ref{ex:lecture} конспекта): $\int_{-\pi}^{\pi} x\sin t\,dt
 # \to \min$ при $|\dot x| \leq 1$, $x(\pm\pi) = 0$. Конспект выводит bang-bang
-# $\hat u(t) = -\mathrm{sgn}(\cos t)$ с сопряжённой $p(t) = -\cos t$
+# $u^*(t) = -\mathrm{sgn}(\cos t)$ с сопряжённой $p(t) = -\cos t$
 # ($\lambda_0 = 1$, случай $\lambda_0 = 0$ невозможен) и доказывает
 # оптимальность оценкой $J(x) \geq -\int_{-\pi}^{\pi}|\cos t|\,dt$.
 #
-# **Предсказание:** численное интегрирование $\hat x$ (дважды интегрируем
-# $\hat u$) даст $J(\hat x) = -4$, и оценка с модулем косинуса достигается:
+# **Предсказание:** численное интегрирование $x^*$ (дважды интегрируем
+# $u^*$) даст $J(x^*) = -4$, и оценка с модулем косинуса достигается:
 # $\int|\cos t|\,dt = 4$. Сопряжённая $p = -\cos t$ обращается в нуль ровно
 # в $\pm\pi/2$ — там и только там bang-bang переключается.
 
@@ -84,25 +85,30 @@ print(f"int |cos t| dt = {int_abs_cos:.10f}")
 print(f"x_hat(pi) = {x[-1]:.3e} (граничное условие)")
 check_golden("lecture_J", J_hat)
 
+# smooth competitor: x = sin t is admissible (|x'| = |cos t| <= 1,
+# x(+-pi) = 0); its value must exceed the bang-bang minimum
+J_smooth = np.trapezoid(np.sin(t) * np.sin(t), t)
+print(f"гладкий конкурент x = sin t: J = {J_smooth:.10f} (ожидание pi)")
+
 fig, ax = plt.subplots(1, 3, figsize=(9, 2.8), layout="constrained")
 ax[0].plot(t, p, color="C0")
 ax[0].set_title("сопряжённая $p(t) = -\\cos t$")
 ax[0].set_xlabel("t")
 ax[1].plot(t, u, color="C1")
-ax[1].set_title("управление $\\hat u = -\\mathrm{sgn}(\\cos t)$")
+ax[1].set_title("управление $u^* = -\\mathrm{sgn}(\\cos t)$")
 ax[1].set_xlabel("t")
 ax[2].plot(t, x, color="C2")
-ax[2].set_title("траектория $\\hat x$")
+ax[2].set_title("траектория $x^*$")
 ax[2].set_xlabel("t")
 for a in ax:
     a.grid(alpha=0.3)
 fig.savefig(f"{FIGDIR}/fig-01.pdf", **SAVE_KW)
 
 # %% [markdown]
-# **Вывод:** совпало с предсказанием: $J(\hat x) = -4$ и нижняя оценка
-# $-\int|\cos t|\,dt = -4$ достигается — $\hat x$ глобальный минимум,
-# $-\hat x$ глобальный максимум (функционал нечётен по $x$). Нули $p$ в
-# $\pm\pi/2$ — точки переключения $\hat u$.
+# **Вывод:** совпало с предсказанием: $J(x^*) = -4$ и нижняя оценка
+# $-\int|\cos t|\,dt = -4$ достигается — $x^*$ глобальный минимум,
+# $-x^*$ глобальный максимум (функционал нечётен по $x$). Нули $p$ в
+# $\pm\pi/2$ — точки переключения $u^*$.
 
 # %% [markdown]
 # ## Пример 2. Двойной интегратор: минимум энергии, краевая задача методом стрельбы
@@ -145,7 +151,7 @@ A = np.column_stack([xTa - xT0, xTb - xT0])
 ab = np.linalg.solve(A, -xT0)
 a_sh, b_sh = ab
 print(f"стрельба: p(0) = ({a_sh:.10f}, {b_sh:.10f})")
-print(f"аналитика: p(0) = (-0.75, -1.75)")
+print("аналитика: p(0) = (-0.75, -1.75)")
 
 _, sol = integrate(a_sh, b_sh)
 tt = np.linspace(0, T, 501)
@@ -302,8 +308,6 @@ fig.savefig(f"{FIGDIR}/fig-03.pdf", **SAVE_KW)
 # стартов.
 
 # %%
-from scipy.optimize import fsolve
-
 T4 = 2.0
 
 
