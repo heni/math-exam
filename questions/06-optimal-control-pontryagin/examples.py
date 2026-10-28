@@ -11,7 +11,8 @@
 # 2. двойной интегратор, минимум энергии — краевая задача ПМП методом
 #    стрельбы против аналитического ответа (задача \ref{prob:energy});
 # 3. двойной интегратор, быстродействие — синтез и кривая переключения,
-#    верификация постоянства максимума $H$ (задача \ref{prob:time-opt});
+#    верификация постоянства максимума $H$ и связи $p = -\nabla S$
+#    (задача \ref{prob:time-opt});
 # 4. bang-bang со свободным концом — трансверсальность в действии
 #    ([18], пример 2).
 
@@ -85,10 +86,12 @@ print(f"int |cos t| dt = {int_abs_cos:.10f}")
 print(f"x_hat(pi) = {x[-1]:.3e} (граничное условие)")
 check_golden("lecture_J", J_hat)
 
-# smooth competitor: x = sin t is admissible (|x'| = |cos t| <= 1,
-# x(+-pi) = 0); its value must exceed the bang-bang minimum
-J_smooth = np.trapezoid(np.sin(t) * np.sin(t), t)
-print(f"гладкий конкурент x = sin t: J = {J_smooth:.10f} (ожидание pi)")
+# smooth competitors x = +-sin t are admissible (|x'| = |cos t| <= 1,
+# x(+-pi) = 0); both must be strictly worse than the bang-bang minimum
+for sign, name in [(1.0, "+sin t"), (-1.0, "-sin t")]:
+    J_c = np.trapezoid(sign * np.sin(t) * np.sin(t), t)
+    print(f"гладкий конкурент x = {name}: J = {J_c:.10f} (ожидание {sign * np.pi:.10f})")
+    assert J_c > J_hat, "гладкий конкурент не хуже bang-bang минимума?"
 
 fig, ax = plt.subplots(1, 3, figsize=(9, 2.8), layout="constrained")
 ax[0].plot(t, p, color="C0")
@@ -108,7 +111,9 @@ fig.savefig(f"{FIGDIR}/fig-01.pdf", **SAVE_KW)
 # **Вывод:** совпало с предсказанием: $J(x^*) = -4$ и нижняя оценка
 # $-\int|\cos t|\,dt = -4$ достигается — $x^*$ глобальный минимум,
 # $-x^*$ глобальный максимум (функционал нечётен по $x$). Нули $p$ в
-# $\pm\pi/2$ — точки переключения $u^*$.
+# $\pm\pi/2$ — точки переключения $u^*$. Гладкие конкуренты $x = \pm\sin t$
+# допустимы и дают $\pm\pi$: даже лучший из них ($-\pi$) заметно хуже
+# минимума $-4$ — bang-bang выигрывает именно за счёт разрывности.
 
 # %% [markdown]
 # ## Пример 2. Двойной интегратор: минимум энергии, краевая задача методом стрельбы
@@ -201,15 +206,16 @@ fig.savefig(f"{FIGDIR}/fig-02.pdf", **SAVE_KW)
 # **Предсказание:** численное интегрирование замкнутой системы с событием
 # пересечения кривой переключения даст момент переключения $t_{sw} =
 # 1 + \sqrt{5/2} \approx 2{,}5811$ и полное время $T^* = 1 + \sqrt{10}
-# \approx 4{,}1623$. Заодно проверим условия ПМП: сопряжённая
+# \approx 4{,}1623$. Заодно проверим условия ПМП **по численным дугам**
+# (не подставляя аналитические формулы траектории): сопряжённая
 # $p_2(t) \propto (t_{sw} - t)$, управление $u^* = \mathrm{sgn}\,p_2$, а
 # $\max_u H = p_1x_2 + |p_2| - \lambda_0$ с $\lambda_0 = t_{sw} - 1$
-# постоянен и равен нулю (свободное время, автономная задача).
+# постоянен и равен нулю (свободное время, автономная задача). Наконец,
+# связь с динамическим программированием: на первом участке (область
+# «$u = +1$») после нормировки $\lambda_0 = 1$ должно выполняться точное
+# равенство $p = -\nabla S$ (конспект, \eqref{eq:ps-gradS}).
 
 # %%
-t_sw = 1.0 + np.sqrt(2.5)
-
-
 def synth(x):
     s = x[0] + 0.5 * x[1] * abs(x[1])
     if abs(s) < 1e-12:
@@ -245,19 +251,37 @@ check_golden("timeopt_t_switch", t1)
 check_golden("timeopt_switch_x1", x_sw[0])
 check_golden("timeopt_T", T_star)
 
-# PMP verification: p_1 = 1, p_2(t) = t_sw - t, lambda_0 = t_sw - 1
+# PMP verification along the numerically integrated arcs (not by plugging
+# analytic trajectory formulas); adjoint from the numerical switch time t1
 tt = np.linspace(0.0, T_star, 1001)
-def x2_of_t(t):
-    return np.where(t <= t1, -1.0 + t, x_sw[1] - (t - t1))
+mask1 = tt <= t1
+x2_num = np.where(mask1, sol1.sol(np.clip(tt, 0.0, t1))[1],
+                  sol2.sol(np.clip(tt, t1, T_star))[1])
+p2 = t1 - tt                       # p_1 = 1, p_2(t) = t1 - t
+maxH = x2_num + np.abs(p2) - (t1 - 1.0)
+print(f"max_u H = 0 вдоль пары (численные дуги): [{maxH.min():.3e}, {maxH.max():.3e}]")
+assert np.abs(maxH).max() < 1e-8
 
-p2 = t1 - tt
-maxH = x2_of_t(tt) + np.abs(p2) - (t1 - 1.0)
-print(f"max_u H = 0 вдоль пары: [{maxH.min():.3e}, {maxH.max():.3e}]")
+# Bellman connection on arc 1 (region u = +1): p / lambda_0 must equal
+# -grad S; the check stops at t1 - 0.05, where dS_2 = -1 + x2/sqrt(r) loses
+# accuracy to floating-point cancellation as x2 -> sqrt(r) near the switch
+X1 = sol1.sol(np.clip(tt, 0.0, t1))
+r = -X1[0] + 0.5 * X1[1] ** 2        # S = -x2 + 2 sqrt(r)
+dS = np.stack([-1.0 / np.sqrt(r), -1.0 + X1[1] / np.sqrt(r)])
+arc = mask1 & (tt <= t1 - 0.05)
+p_norm = np.stack([np.ones(arc.sum()), p2[arc]]) / (t1 - 1.0)
+ratio = p_norm / -dS[:, arc]
+print(f"p = -grad S на дуге 1: отношение компонент в [{ratio.min():.12g}, {ratio.max():.12g}]")
+assert np.abs(ratio - 1.0).max() < 1e-6
 
 # figure: phase portrait with switching curve and the optimal arc
+# (upper branch x2 = +sqrt(-2 x1) lives at x1 <= 0, lower at x1 >= 0)
 xs = np.linspace(-3, 1.5, 400)
-curve_up = np.where(xs >= 0, np.sqrt(np.maximum(0, -2 * xs)), np.nan)
-curve_dn = np.where(xs <= 0, -np.sqrt(np.maximum(0, 2 * xs)), np.nan)
+curve_up = np.full_like(xs, np.nan)
+curve_dn = np.full_like(xs, np.nan)
+m = xs <= 0
+curve_up[m] = np.sqrt(-2 * xs[m])
+curve_dn[~m] = -np.sqrt(2 * xs[~m])
 
 fig, ax = plt.subplots(figsize=(5.4, 4.2), layout="constrained")
 ax.plot(xs, curve_up, "k-", lw=1.2)
@@ -269,22 +293,26 @@ ax.plot(*sol2.sol(tt2), "C1-", lw=2, label="u = -1")
 ax.plot(-2, -1, "ko", ms=4)
 ax.plot(0, 0, "k*", ms=8)
 ax.annotate("(-2, -1)", (-2, -1), textcoords="offset points", xytext=(6, -12))
-ax.annotate("переключение", tuple(x_sw), textcoords="offset points",
-            xytext=(-90, 4))
+ax.annotate("переключение", tuple(x_sw), xytext=(0.3, 2.2),
+            arrowprops=dict(arrowstyle="->", lw=0.8))
 ax.set_xlabel("$x_1$")
 ax.set_ylabel("$x_2$")
-ax.set_title("кривая переключения $x_1 = -\\frac{1}{2}x_2|x_2|$ и оптимальная дуга")
-ax.legend(loc="upper left")
+ax.set_title("кривая переключения $x_1 = -\\frac{1}{2}x_2|x_2|$ и оптимальная дуга",
+             fontsize=10)
+ax.legend(loc="center right")
+ax.set_ylim(-2.6, 2.6)
 ax.grid(alpha=0.3)
 fig.savefig(f"{FIGDIR}/fig-03.pdf", **SAVE_KW)
 
 # %% [markdown]
 # **Вывод:** численный синтез подтвердил аналитику: переключение в
 # $(-5/4, \sqrt{5/2})$ в момент $t_{sw} = 1 + \sqrt{5/2}$, полное время
-# $T^* = 1 + \sqrt{10} \approx 4{,}1623$. Верификация ПМП согласуется:
-# $\max_u H \equiv 0$ вдоль оптимальной пары (свободное время), сопряжённая
-# линейна, переключение одно — меньше границы $n - 1 = 1$ теоремы
-# Фельдбаума, которая для двойного интегратора точна.
+# $T^* = 1 + \sqrt{10} \approx 4{,}1623$. Проверки ПМП по численным дугам
+# согласуются: $\max_u H \equiv 0$ вдоль оптимальной пары (свободное время),
+# сопряжённая линейна, переключение одно — не больше границы $n - 1 = 1$
+# теоремы Фельдбаума, которая для двойного интегратора точна. На первом
+# участке $p/\lambda_0 = -\nabla S$ точно — связь принципа максимума с
+# динамическим программированием подтверждена численно.
 
 # %% [markdown]
 # ## Пример 4. Bang-bang со свободным концом: трансверсальность
