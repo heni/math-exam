@@ -216,9 +216,6 @@ fig.savefig(f"{FIGDIR}/fig-02.pdf", **SAVE_KW)
 # равенство $p = -\nabla S$ (конспект, \eqref{eq:ps-gradS}).
 
 # %%
-t_sw = 1.0 + np.sqrt(2.5)
-
-
 def synth(x):
     s = x[0] + 0.5 * x[1] * abs(x[1])
     if abs(s) < 1e-12:
@@ -266,8 +263,8 @@ print(f"max_u H = 0 вдоль пары (численные дуги): [{maxH.mi
 assert np.abs(maxH).max() < 1e-8
 
 # Bellman connection on arc 1 (region u = +1): p / lambda_0 must equal
-# -grad S; the check stops at t1 - 0.05, where dS_2 = (sqrt(r) - x2)/sqrt(r)
-# loses accuracy to floating-point cancellation near the switch
+# -grad S; the check stops at t1 - 0.05, where dS_2 = -1 + x2/sqrt(r) loses
+# accuracy to floating-point cancellation as x2 -> sqrt(r) near the switch
 X1 = sol1.sol(np.clip(tt, 0.0, t1))
 r = -X1[0] + 0.5 * X1[1] ** 2        # S = -x2 + 2 sqrt(r)
 dS = np.stack([-1.0 / np.sqrt(r), -1.0 + X1[1] / np.sqrt(r)])
