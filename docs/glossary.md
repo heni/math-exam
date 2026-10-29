@@ -246,7 +246,7 @@
 | [01-approximation](glossary/01-approximation.md) | 01, 11, 13, 19 | `01-splines`, `11-chebyshev-polynomials`, `13-numerical-diff-int`, `19-best-uniform-approximation` |
 | [02-functional-analysis](glossary/02-functional-analysis.md) | 05, 07, 09, 15 | `05-wavelets`, `07-fourier-laplace-haar`, `09-hilbert-riesz`, `15-functionals-hahn-banach` |
 | [03-probability](glossary/03-probability.md) | 03, 08, 12, 14, 17 | `03-decision-bayes-minimax`, `08-random-variables-correlation`, `12-lln-clt`, `14-interval-estimation-tests`, `17-monte-carlo` |
-| [04-optimization-control](glossary/04-optimization-control.md) | 04, 06, 10 | `04-observers-luenberger`, `06-optimal-control-pontryagin`, `10-multivariate-minimization` |
+| [04-optimization-control](glossary/04-optimization-control.md) | 04, 06, 10, 20 | `04-observers-luenberger`, `06-optimal-control-pontryagin`, `10-multivariate-minimization`, `20-markov-decision-process` |
 | [05-machine-learning](glossary/05-machine-learning.md) | 02, 16, 18 | `02-ml-inverse-problems`, `16-pca-ica`, `18-linear-logistic-regression` |
 
 Коллизии вопроса и термины его блока — в файле этого блока; правила записи

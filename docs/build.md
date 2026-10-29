@@ -47,8 +47,15 @@ make clean            # удалить собранные артефакты
 | Python | 3.12+ | 3.14.4 ✓ |
 | numpy, scipy, matplotlib, sympy, pandas | см. `requirements.txt` | ✓ |
 | jupytext, nbformat, nbconvert, ipykernel | — | ✓ (1.19.5 / 5.11.1 / 7.17.1 / 7.3.0) |
-| scikit-learn, PyWavelets, statsmodels, control | — | ✓ (1.9.1 / 1.10.0 / 0.15.0 / 0.10.2) |
+| scikit-learn, PyWavelets, statsmodels, control | — | ✓ (1.9.1 / 1.8.0¹ / 0.15.0 / 0.10.2) |
 | jupyter-kernel `math-exam` | — | ✓ зарегистрирован |
+
+¹ PyWavelets: версия сверена по импорту (`pywt.__version__`), а не по метаданным
+pip. Метаданные и `requirements-lock.txt` говорят 1.10.0 — столько pip ставит
+под Python 3.14, — но колёса 1.10.0 на PyPI (проверены cp313 и cp314,
+manylinux) содержат код 1.8.0. Сборка 1.8.0 из sdist под 3.14 падает, колеса
+1.8.0 под cp314 нет: единственный рабочий вариант — это колесо, и фактическая
+версия кода — 1.8.0.
 
 `pandoc-crossref` и `biber` отсутствуют, но не нужны: ссылки внутри документа
 идут через `\label`/`\ref` LaTeX, библиографии в материалах нет — источники
