@@ -215,6 +215,7 @@
 | `\scal{x}{y}` | $\langle x, y\rangle$ | скалярное произведение |
 | `\argmin \argmax` | $\arg\min$ | точка экстремума |
 | `\sgn \rank \tr \diag \supp` | $\operatorname{sign}$ и т.д. | стандартные операторы |
+| `\range` | $\operatorname{range}(A)$ | образ (линейная оболочка столбцов) |
 | `\cov` | $\operatorname{cov}$ | ковариация (вопросы 08, 16, 18) |
 | `\Tm` | $\widetilde{T}$ | приведённый многочлен Чебышёва (вопросы 01, 11, 13, 19) |
 
