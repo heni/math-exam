@@ -41,7 +41,7 @@ $$\hat\theta = (A^{\T}A)^{-1}A^{\T}y.$$
 $$\hat\theta = \sum_{j=1}^{r}\frac{u_j^{\T}y}{d_j}\,v_j$$
 по сингулярному разложению (псевдообратная Мура—Пенроуза).
 
-## Теорема Гаусс — Маркова
+## Теорема Гаусса — Маркова
 
 \begin{theorem}[Гаусс — Марков]
 При посылках (G) оценка $\hat\theta$ наименьших квадратов — наилучшая линейная несмещённая оценка (англ. \emph{best linear unbiased estimator}, BLUE): для любой линейной оценки $\tilde\theta = Cy$ $(C\in\R^{n\times m})$, несмещённой для всех $\theta$ при верной модели ($CA = I_n$), выполнено
@@ -77,8 +77,8 @@ $$\Var\hat\theta \preceq \Var\tilde\theta$$
 $$\frac{\|\hat\theta_{NE} - \hat\theta\|_2}{\|\hat\theta\|_2} \approx u\,\kappa_2(A)^2.$$
 \end{theorem}
 
-Чувствительность самой задачи к данным ($\kappa_2 = d_1/d_n$, $\sin\theta = \|r\|/\|y\|$):
-$$\frac{\|\hat\theta - \theta\|_2}{\|\theta\|_2} \le \varepsilon\Bigl\{\frac{2\kappa_2(A)}{\cos\theta} + \tan\theta\,\kappa_2(A)^2\Bigr\} + O(\varepsilon^2).$$
+Чувствительность самой задачи к данным ($\kappa_2 = d_1/d_n$, $\sin\varphi = \|r\|/\|y\|$):
+$$\frac{\|\hat\theta - \theta\|_2}{\|\theta\|_2} \le \varepsilon\Bigl\{\frac{2\kappa_2(A)}{\cos\varphi} + \tan\varphi\,\kappa_2(A)^2\Bigr\} + O(\varepsilon^2).$$
 При ненулевой невязке — квадратичная зависимость от обусловленности.
 
 ## QR и SVD
