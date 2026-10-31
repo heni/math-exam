@@ -828,5 +828,5 @@ print()
 print("фигуры: fig-01.pdf (разброс коэффициентов, фильтр гребня), "
       "fig-02.pdf (kappa^2 против kappa), fig-03.pdf (данные, сходимость), "
       "fig-04.pdf (разделимость) — в questions/18-linear-logistic-regression/figures/")
-print("README вопроса получает итог петли review-fix-loop (по §7 AGENTS.md), "
+print("README вопроса получает итог петли review-fix-loop, "
       "а не числа из этого ноутбука.")
