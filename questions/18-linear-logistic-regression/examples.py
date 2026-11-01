@@ -784,7 +784,8 @@ NORM_PLAIN = float(norm_plain_hist[-1])
 print(f"IRLS без регуляризации, {it_plain} итераций:")
 print(f"  ||theta_30|| = {norm_plain_hist[30]:.6g}, ||theta_150|| = {NORM_PLAIN:.6g} "
       f"(на старте 0; плато ОМП)")
-print(f"  log-loss: Q(theta_30) = {loss_plain[30]:.6g}, "
+print(f"  log-loss: Q(theta_0) = {loss_plain[0]:.6g}, "
+      f"Q(theta_30) = {loss_plain[30]:.6g}, "
       f"Q(theta_150) = {loss_plain[-1]:.6g}")
 print(f"  ||grad Q(theta_150)|| = {gn_plain[-1]:.12g} (мала, но не нуль)")
 # argmax would silently return 0 if the threshold was never crossed
@@ -793,13 +794,15 @@ if passed_at.size:
     print(f"  порог 1e-8 впервые пройден на итерации {int(passed_at[0])} "
           f"(здесь это честная остановка: ОМП существует)")
 else:
-    print(f"  порог 1e-8 не пройден ни разу")
+    print("  порог 1e-8 не пройден ни разу")
 # The MLE of a near-separable sample is finite (the flipped points bound
 # it), so the runaway >100 regime of the exactly separable case is gone;
 # 25 separates the large MLE norm from the ridge norm (~4.5) and the true
 # scale ||3*theta_logit|| ~ 10.
 assert NORM_PLAIN > 25.0, "норма ОМП на почти разделимой выборке должна быть велика"
-check_golden("norm_plain", NORM_PLAIN, tol=0.5)
+# The plateau is a converged fixed point: its digits are BLAS-stable like
+# the other pins, so the default tolerance applies.
+check_golden("norm_plain", NORM_PLAIN)
 
 # --- IRLS с гребнем: alpha по 5-кратной CV на log-loss ---
 ALPHAS4 = np.logspace(-4, 2, 49)
@@ -894,29 +897,28 @@ fig.savefig(f"{FIGDIR}/fig-04.pdf", **SAVE_KW)
 
 # %%
 rows = [
-    ("kappa_2(A), пример 1", f"{KAPPA2_A:.6g}", "theory.md, раздел «Численная сторона МНК»"),
-    ("d_n, пример 1", f"{d[-1]:.6g}", "theory.md, мотивация гребня"),
-    ("alpha (1SE), пример 1", f"{ALPHA_1SE:.6g}", "theory.md, rem:ridge; слайды"),
-    ("MSE(theta): ridge/OLS, пример 1", f"{RATIO_RIDGE:.6g}", "theory.md, смещение-дисперсия гребня"),
-    ("MSE предсказания ridge/OLS на тесте, пример 1", f"{RATIO_TEST:.6g}",
-     "theory.md, rem:ridge (alpha по CV)"),
-    ("MSE(4 строк)/MSE(OLS), пример 1", f"{RATIO_ROW4:.6g}", "theory.md, теорема Гаусса — Маркова"),
-    ("среднее RSS/(m-n), пример 1", f"{SIG_HAT2_MEAN:.6g}", "theory.md, теорема о несмещённой оценке sigma^2"),
-    ("наклон NE, пример 2", f"{SLOPE_NE:.6g}", "theory.md, thm:normal-bad; слайды"),
-    ("наклон SVD (numpy lstsq), пример 2", f"{SLOPE_QR:.6g}", "theory.md, rem:perturb; слайды"),
-    ("kappa_2 диапазон, пример 2", f"{kappas.min():.3g} ... {kappas.max():.3g}", "theory.md, rem:perturb"),
-    ("итераций IRLS, пример 3", f"{it_irls}", "theory.md, rem:irls-conv"),
-    ("log-loss IRLS, пример 3", f"{IRLS_LOGLOSS:.6g}", "theory.md, раздел про IRLS"),
+    ("kappa_2(A), пример 1", f"{KAPPA2_A:.6g}", "theory.md, раздел «Обучение первыми методами» (κ₂ ≈ 42)"),
+    ("d_n, пример 1", f"{d[-1]:.6g}", "— (живёт здесь)"),
+    ("alpha (1SE), пример 1", f"{ALPHA_1SE:.6g}", "— (живёт здесь)"),
+    ("MSE(theta): ridge/OLS, пример 1", f"{RATIO_RIDGE:.6g}", "— (живёт здесь)"),
+    ("MSE предсказания ridge/OLS на тесте, пример 1", f"{RATIO_TEST:.6g}", "— (живёт здесь)"),
+    ("MSE(4 строк)/MSE(OLS), пример 1", f"{RATIO_ROW4:.6g}", "— (живёт здесь)"),
+    ("среднее RSS/(m-n), пример 1", f"{SIG_HAT2_MEAN:.6g}", "— (живёт здесь)"),
+    ("наклон NE, пример 2", f"{SLOPE_NE:.6g}", "— (живёт здесь; допуск tol=0.2 под переносимость BLAS)"),
+    ("наклон SVD (numpy lstsq), пример 2", f"{SLOPE_QR:.6g}", "— (живёт здесь; допуск tol=0.2 под переносимость BLAS)"),
+    ("kappa_2 диапазон, пример 2", f"{kappas.min():.3g} ... {kappas.max():.3g}", "— (живёт здесь)"),
+    ("итераций IRLS, пример 3", f"{it_irls}", "theory.md, раздел «Обучение первыми методами» (6 итераций)"),
+    ("log-loss IRLS, пример 3", f"{IRLS_LOGLOSS:.6g}", "— (живёт здесь)"),
     ("kappa = L/mu (факт.) и kappa_2^2, пример 3",
-     f"{KAPPA_ACT:.6g} / {KAPPA_CRUDE:.6g}", "theory.md, раздел «Обучение первыми методами»"),
-    ("итераций GD (eta = 1/L), пример 3", f"{it_gd}", "theory.md, раздел «Обучение первыми методами»"),
-    ("eta0 SGD, пример 3", f"{ETA0_SGD}", "theory.md, SGD (выбор шага)"),
+     f"{KAPPA_ACT:.6g} / {KAPPA_CRUDE:.6g}", "theory.md, раздел «Обучение первыми методами» (≈3,1·10³ и ≈2,2·10³)"),
+    ("итераций GD (eta = 1/L), пример 3", f"{it_gd}", "theory.md, раздел «Обучение первыми методами» (≈3,3·10⁴)"),
+    ("eta0 SGD, пример 3", f"{ETA0_SGD}", "— (живёт здесь)"),
     ("accuracy / precision / recall, пример 3",
-     f"{acc:.3f} / {prec:.3f} / {rec:.3f}", "theory.md, таблица метрик"),
+     f"{acc:.3f} / {prec:.3f} / {rec:.3f}", "— (живёт здесь)"),
     ("||theta_150|| без регуляризации, пример 4", f"{NORM_PLAIN:.6g}",
-     "theory.md, rem:separation; слайды"),
-    ("alpha (CV), пример 4", f"{ALPHA_RIDGE:.6g}", "theory.md, rem:separation"),
-    ("||theta|| с гребнем, пример 4", f"{NORM_RIDGE:.6g}", "theory.md, rem:separation"),
+     "— (живёт здесь; в theory.md численная ссылка снята)"),
+    ("alpha (CV), пример 4", f"{ALPHA_RIDGE:.6g}", "— (живёт здесь)"),
+    ("||theta|| с гребнем, пример 4", f"{NORM_RIDGE:.6g}", "— (живёт здесь)"),
 ]
 print(f"{'величина':<42} {'значение':<28} куда идёт")
 for name, val, dst in rows:
