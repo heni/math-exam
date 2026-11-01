@@ -34,15 +34,16 @@ GOLDEN = {
     "mse_ratio_ridge_ols_test": 1.08812833194,
     "mse_ratio_4row_ols": 29.9423566275,
     "sigma_hat2_mean": 0.247271275862,
-    # пример 2 (нормальные уравнения против QR)
+    # пример 2 (нормальные уравнения против SVD-решателя)
     "slope_ne": 2.02146313834,
     "slope_qr": 1.02913909182,
     # пример 3 (IRLS против GD и SGD)
-    "irls_iters": 5,
-    "irls_logloss": 28.9125867176,
+    "irls_iters": 6,
+    "irls_logloss": 25.1544144643,
     # пример 4 (разделимость и регуляризация)
-    "norm_plain": 717.826901416,
-    "norm_ridge": 16.1173073473,
+    "norm_plain": 52.1920912316,
+    "norm_ridge": 4.48477011101,
+    "alpha_ridge": 0.133352143216,
 }
 TOL = 1e-3
 
@@ -263,7 +264,7 @@ print(f"Гаусс — Марков, матрично: min собств. (C C^T 
       f"{lam_min:.3g} (должно быть >= 0)")
 
 # %%
-fig, axes = plt.subplots(1, 2, figsize=(9.5, 3.8), layout="constrained")
+fig, axes = plt.subplots(1, 2, figsize=(10, 4.0), layout="constrained")
 
 ax = axes[0]
 methods = [("ols", "МНК"), ("ridge", f"гребень $\\alpha = {ALPHA_1SE:.3g}$"),
@@ -336,12 +337,13 @@ fig.savefig(f"{FIGDIR}/fig-01.pdf", **SAVE_KW)
 # значение $CC^{\T} - (A^{\T}A)^{-1}$ равно $0{,}072 \geq 0$.
 
 # %% [markdown]
-# ## Пример 2. Нормальные уравнения против QR: квадрат обусловленности
+# ## Пример 2. Нормальные уравнения против SVD (numpy lstsq): квадрат обусловленности
 #
 # **Вопрос (theory.md, теоремы thm:normal-bad и thm:qr, замечание
 # rem:perturb):** почему решение $\hat\theta = (A^{\T}A)^{-1}A^{\T}y$ через
 # нормальные уравнения теряет $\approx \kappa_2(A)^2$ значащих цифр, а
-# QR-разложение (в виде `lstsq`) — только $\approx \kappa_2(A)$.
+# SVD-разложение (numpy `lstsq` решает МНК методом SVD, LAPACK gelsd) —
+# только $\approx \kappa_2(A)$.
 #
 # **Предсказание до прогона.** Та же структура данных, корреляция $\rho$
 # между $x_1$ и $x_2$ пробегает $0{,}999 \dots 1 - 10^{-12}$ (конструкция
@@ -381,7 +383,7 @@ for j in JS:
     err_qr += qr_j
     print(f"rho = 1 - 10^-{j:<2d}: kappa_2 = {np.mean(kap_j):.6g} "
           f"({np.min(kap_j):.4g}..{np.max(kap_j):.4g}), "
-          f"err(NE) = {np.mean(ne_j):.3g}, err(QR) = {np.mean(qr_j):.3g}")
+          f"err(NE) = {np.mean(ne_j):.3g}, err(SVD) = {np.mean(qr_j):.3g}")
 
 kappas = np.array(kappas)
 err_ne = np.array(err_ne)
@@ -394,23 +396,30 @@ print(f"rho = 1 - 10^-j, j = {JS[0]}..{JS[-1]}; {R2} реализаций диз
 print(f"kappa_2(A): от {kappas.min():.6g} до {kappas.max():.6g}")
 print(f"наклон log err против log kappa: нормальные уравнения = {SLOPE_NE:.6g} "
       f"(предсказание: 2)")
-print(f"наклон log err против log kappa: lstsq (QR/SVD)        = {SLOPE_QR:.6g} "
+print(f"наклон log err против log kappa: SVD (numpy lstsq)      = {SLOPE_QR:.6g} "
       f"(предсказание: 1)")
 assert SLOPE_NE > 1.5, "наклон NE должен быть около 2"
-assert 0.5 < SLOPE_QR < 1.5, "наклон QR должен быть около 1"
-check_golden("slope_ne", SLOPE_NE)
-check_golden("slope_qr", SLOPE_QR)
+assert 0.5 < SLOPE_QR < 1.5, "наклон SVD должен быть около 1"
+# Rounding-error slopes depend on the BLAS/LAPACK build (on another numpy
+# 2.5.3 build they are 1.945/0.956), hence the wide per-pin tolerance.
+check_golden("slope_ne", SLOPE_NE, tol=0.2)
+check_golden("slope_qr", SLOPE_QR, tol=0.2)
 
 # %%
-fig, ax = plt.subplots(figsize=(6.2, 4.0), layout="constrained")
-ax.loglog(kappas, err_ne, "o-", lw=1.2, mfc="none",
+# sort (kappa, err) pairs before plotting: the error is computed on the
+# unsorted rho-grid, but connecting unsorted realizations draws a sawtooth
+order = np.argsort(kappas)
+kap_plot, ne_plot = kappas[order], err_ne[order]
+_, qr_plot = kappas[order], err_qr[order]
+fig, ax = plt.subplots(figsize=(7, 4.2), layout="constrained")
+ax.loglog(kap_plot, ne_plot, "o-", lw=1.0, ms=4,
           label=f"нормальные уравнения, наклон {SLOPE_NE:.2f}")
-ax.loglog(kappas, err_qr, "s-", lw=1.2, mfc="none",
-          label=f"lstsq (QR/SVD), наклон {SLOPE_QR:.2f}")
-ref = np.array([kappas.min(), kappas.max()])
-ax.loglog(ref, err_ne[0] * (ref / kappas[0])**2, "k:", lw=0.9,
+ax.loglog(kap_plot, qr_plot, "s-", lw=1.0, ms=4,
+          label=f"SVD (numpy lstsq), наклон {SLOPE_QR:.2f}")
+ref = np.array([kap_plot[0], kap_plot[-1]])
+ax.loglog(ref, ne_plot[0] * (ref / kap_plot[0])**2, "k:", lw=0.9,
           label="наклон 2 ($\\kappa_2^2\\, u$)")
-ax.loglog(ref, err_qr[0] * (ref / kappas[0])**1, "k--", lw=0.9,
+ax.loglog(ref, qr_plot[0] * (ref / kap_plot[0])**1, "k--", lw=0.9,
           label="наклон 1 ($\\kappa_2\\, u$)")
 ax.set_xlabel("число обусловленности $\\kappa_2(A)$")
 ax.set_ylabel("относительная ошибка $\\|\\widehat\\theta - \\theta^*\\|/\\|\\theta^*\\|$")
@@ -440,7 +449,11 @@ fig.savefig(f"{FIGDIR}/fig-02.pdf", **SAVE_KW)
 # раза). Нормальные уравнения пола не видят: наклон $2$ держится на
 # всём диапазоне, и при $\kappa_2 = 1{,}76\cdot10^6$ ошибка $\approx
 # 10^{-4}$ — сравните с $\approx 10^{-10}$ у `lstsq`: разрыв шесть порядков
-# в задаче $60 \times 4$.
+# в задаче $60 \times 4$. Пины `slope_ne` и `slope_qr` фиксируют наклоны
+# ошибок округления: они зависят от сборки BLAS/LAPACK (на другой сборке
+# numpy 2.5.3 те же наклоны — $1{,}945$ и $0{,}956$), поэтому допуск у них
+# $\pm 0{,}2$ под переносимость между сборками; остальные пины
+# машинно-независимы.
 
 # %% [markdown]
 # ## Пример 3. Логистическая регрессия: IRLS против GD и SGD
@@ -460,13 +473,15 @@ fig.savefig(f"{FIGDIR}/fig-02.pdf", **SAVE_KW)
 # 10^{-8}$ или 200 итераций), GD с постоянным шагом $\eta = 1/L$, $L =
 # d_1^2(A)/4$ (оценка $\lambda_{\max}(A^{\T}WA) \leq d_1^2/4$), SGD с батчем
 # 16 и $\eta_k = \eta_0/(1+k/k_0)$. Ожидаем: IRLS сошлётся за единицы—десятки
-# итераций (локальная квадратичная сходимость); GD — существенно медленнее
-# (для задачи с константой обусловленности $\kappa = L/\mu \approx
-# \kappa_2(A)^2 \approx 1{,}8\cdot10^3$ сходимость с коэффициентом
-# $(\kappa-1)/(\kappa+1) \approx 1 - 1{,}1\cdot10^{-3}$ — тот же квадрат
-# обусловленности, что в примере 2); SGD — шумное плато около минимума;
-# итоговые значения log-loss близки у всех трёх. Метрики качества на
-# отложенной выборке и матрица ошибок — для теоремы-таблицы раздела метрик.
+# итераций (локальная квадратичная сходимость); GD — существенно медленнее:
+# при шаге $\eta = 1/L$ сжатие градиента на итерацию есть $(1 - 1/\kappa)$ с
+# $\kappa = L/\mu \approx \kappa_2(A)^2 \approx 2\cdot10^3$ — тот же квадрат
+# обусловленности, что в примере 2, — и до критерия $\|\nabla Q\| < 10^{-6}$
+# потребуется порядка $\kappa\ln 10^7 \sim 3\cdot10^4$ итераций; SGD — шумное
+# плато около минимума; итоговые значения log-loss близки у всех трёх. Метрики
+# качества и матрица ошибок — на стратифицированной отложенной выборке: $12$
+# точек, по $6$ объектов каждого класса (равные доли: без стратификации
+# accuracy на малом тесте с дисбалансом бессодержательна).
 
 # %%
 def sigmoid(z):
@@ -553,10 +568,15 @@ print(f"классы: {int(y_bin.sum())} единиц, {int((1 - y_bin).sum())} 
 
 rng3s = np.random.default_rng([SEED, 6])
 perm3 = rng3s.permutation(M1)
-TR, TE = perm3[:48], perm3[48:]
+# Stratified holdout from the same permutation: 12 points, 6 of each class.
+ones_p = perm3[y_bin[perm3] == 1.0]
+zeros_p = perm3[y_bin[perm3] == 0.0]
+TE = np.sort(np.concatenate([ones_p[:6], zeros_p[:6]]))
+TR = perm3[~np.isin(perm3, TE)]
 A_tr, y_tr = A[TR], y_bin[TR]
 A_te, y_te = A[TE], y_bin[TE]
-print(f"обучение: {len(TR)}, отложенная выборка: {len(TE)}")
+print(f"обучение: {len(TR)}, отложенная выборка: {len(TE)} "
+      f"({int(y_te.sum())} единиц, {int((1 - y_te).sum())} нулей)")
 
 d1_tr = np.linalg.svd(A_tr, compute_uv=False)[0]
 L_LIPS = d1_tr**2 / 4.0
@@ -572,6 +592,22 @@ print(f"IRLS: итераций = {it_irls}, log-loss = {IRLS_LOGLOSS:.12g}, "
 print(f"      ||theta_hat - theta_logit|| = {np.linalg.norm(th_irls - THETA_LOGIT):.6g}")
 check_golden("irls_iters", float(it_irls))
 check_golden("irls_logloss", IRLS_LOGLOSS)
+
+# обусловленность задачи обучения: квадратичная оценка и фактическая каппа = L/mu
+KAPPA2_TR = float(np.linalg.cond(A_tr))
+w_hat = sigmoid(A_tr @ th_irls) * (1.0 - sigmoid(A_tr @ th_irls))
+HESS_EV = np.linalg.eigvalsh((A_tr * w_hat[:, None]).T @ A_tr)
+MU_HES = float(HESS_EV[0])
+KAPPA_CRUDE = KAPPA2_TR**2
+KAPPA_ACT = L_LIPS / MU_HES
+print(f"обусловленность GD: квадратичная оценка kappa_2(A_tr)^2 = {KAPPA_CRUDE:.6g}; "
+      f"фактическая kappa = L/mu = {KAPPA_ACT:.6g}")
+print(f"  mu = lambda_min(A_tr^T W_hat A_tr) = {MU_HES:.6g} (спектр гессиана в "
+      f"минимуме: {np.array2string(HESS_EV, precision=4)})")
+print(f"  веса W_hat = p(1-p): перцентили 0/25/50/75/100 = "
+      f"{np.percentile(w_hat, [0, 25, 50, 75, 100]).round(4).tolist()}")
+print(f"  ожидание итераций: kappa*ln(10^7) = {KAPPA_ACT * np.log(1e7):.6g}, "
+      f"kappa_2^2*ln(10^7) = {KAPPA_CRUDE * np.log(1e7):.6g}")
 
 th_gd, loss_gd, it_gd = gd_const(A_tr, y_tr, ETA_GD)
 print(f"GD (eta = 1/L): итераций = {it_gd}, log-loss = {loss_gd[-1]:.12g}, "
@@ -607,11 +643,20 @@ rec = tp / (tp + fn) if tp + fn > 0 else float("nan")
 print(f"отложенная выборка ({len(TE)} точек): матрица ошибок "
       f"TP = {tp}, TN = {tn}, FP = {fp}, FN = {fn}")
 print(f"accuracy = {acc:.4f}, precision = {prec:.4f}, recall = {rec:.4f}")
+# контекст для чтения метрик: качество ограничено самими данными (сильное
+# перекрытие классов), а не только качеством оценивания
+acc_fit_tr = float(((sigmoid(A_tr @ th_irls) > 0.5).astype(float) == y_tr).mean())
+acc_true_tr = float(((p_true[TR] > 0.5).astype(float) == y_tr).mean())
+acc_true_te = float(((p_true[TE] > 0.5).astype(float) == y_te).mean())
+n_pred1_tr = int((sigmoid(A_tr @ th_irls) > 0.5).sum())
+print(f"оцененная граница на обучении: {n_pred1_tr} из {len(TR)} прогнозов — класс 1, "
+      f"точность {acc_fit_tr:.4f}; граница при истинном theta_logit: "
+      f"обучение {acc_true_tr:.4f}, отложенная выборка {acc_true_te:.4f}")
 print(f"контроль сходимости (rem:score): sum p_hat = "
       f"{sigmoid(A_tr @ th_irls).sum():.6f} против sum y = {y_tr.sum():.0f}")
 
 # %%
-fig, axes = plt.subplots(1, 2, figsize=(9.5, 3.8), layout="constrained")
+fig, axes = plt.subplots(1, 2, figsize=(10, 4.2), layout="constrained")
 
 ax = axes[0]
 mask1 = y_bin == 1.0
@@ -631,53 +676,68 @@ ax.set_ylim(A[:, 3].min() - 0.3, A[:, 3].max() + 0.3)
 ax.legend(fontsize=7, loc="upper right")
 
 ax = axes[1]
-ax.semilogy(np.arange(len(loss_irls)), loss_irls, "o-", lw=1.2, mfc="none",
+QSTAR = float(loss_irls[-1])
+# разрыв с итоговым значением IRLS: в log-шкале видна разница линейной
+# (GD/SGD) и квадратичной (IRLS) сходимости; неположительные разрывы маскируем
+gap_irls = np.where(loss_irls > QSTAR, loss_irls - QSTAR, np.nan)
+gap_gd = np.where(loss_gd > QSTAR, loss_gd - QSTAR, np.nan)
+gap_sgd = np.where(loss_sgd > QSTAR, loss_sgd - QSTAR, np.nan)
+ax.semilogy(np.arange(len(gap_irls)), gap_irls, "o-", lw=1.2, mfc="none",
             label=f"IRLS, {it_irls} итер.")
-step_gd = max(1, len(loss_gd) // 2000)
-ax.semilogy(np.arange(0, len(loss_gd), step_gd), loss_gd[::step_gd], "-",
+step_gd = max(1, len(gap_gd) // 2000)
+ax.semilogy(np.arange(0, len(gap_gd), step_gd), gap_gd[::step_gd], "-",
             lw=0.9, label=f"GD, {it_gd} итер.")
-ax.semilogy(np.arange(len(loss_sgd)), loss_sgd, "-", lw=0.7, alpha=0.6,
-            label=f"SGD, {len(loss_sgd) - 1} шагов")
-ax.set_ylim(28.7, 34.0)   # стартовый транзиент (~40) обрезан: важно плато
+ax.semilogy(np.arange(len(gap_sgd)), gap_sgd, "-", lw=0.7, alpha=0.6,
+            label=f"SGD, {len(gap_sgd) - 1} шагов")
 ax.set_xlabel("итерация / шаг")
-ax.set_ylabel("log-loss $Q(\\theta)$ (обучение)")
-ax.set_title(f"сходимость: eta = 1/L = {ETA_GD:.3g}, eta0 = {ETA0_SGD} (SGD)")
+ax.set_ylabel("разрыв с оптимумом $Q(\\theta_k) - Q^*$")
+ax.set_title("IRLS квадратичен, GD/SGD линейны (лог-шкала)")
 ax.legend(fontsize=8)
 fig.savefig(f"{FIGDIR}/fig-03.pdf", **SAVE_KW)
 
 # %% [markdown]
-# **Вывод:** пункт про IRLS подтвердился полностью: **5 итераций** до
-# $\|\nabla Q\| \approx 2{,}4\cdot10^{-11}$ — локальная квадратичная
+# **Вывод:** пункт про IRLS подтвердился: **6 итераций** до
+# $\|\nabla Q\| \approx 7{,}2\cdot10^{-15}$ — локальная квадратичная
 # сходимость Ньютона из rem:irls-conv. Итоговые log-loss совпали: IRLS
-# $28{,}9125867176$, GD $28{,}9125867177$ — совпадают первые одиннадцать
+# $25{,}1544144643$, GD $25{,}1544144644$ — совпадают первые десять
 # значащих цифр, оба метода нашли одну и ту же точку; SGD держит шумное
-# плато рядом: $29{,}21$ в конце ($29{,}15$ лучшее по траектории) при
-# выбранном $\eta_0 = 0{,}05$
-# (из проб $0{,}01\dots0{,}1$; batch $16$, $k_0 = 200$). Пункт «GD —
-# существенно медленнее IRLS» подтвердился сверх ожидания: фактически
-# $22\,630$ итераций против $5$ у IRLS. Это не аномалия, а прямое
-# проявление теории: с шагом
-# $\eta = 1/L$ градиентный спуск на функции с константой обусловленности
-# $\kappa = L/\mu \approx \kappa_2(A)^2 \approx 1{,}8\cdot10^3$ сходится
-# с коэффициентом $(\kappa-1)/(\kappa+1) \approx 1 - 1{,}1\cdot10^{-3}$,
-# и сжатие градиента от $O(m)$ до $10^{-6}$ требует $\frac{\kappa}{2}\ln
-# 10^{7} \approx 1{,}4\cdot10^4$ итераций — тот же порядок, что
-# наблюден ($\approx 2{,}3\cdot10^4$); финальная фаза быстрее оценки, так
-# как локальный гессиан $A^{\T}WA$ меньше границы $d_1^2/4$ (веса
-# $p_i(1-p_i) < 1/4$). Различие «$5$ против $22\,630$» — та же цена
-# квадрата обусловленности, что в примере 2, теперь в терминах итераций.
-# Отдельно: $\|\hat\theta - \theta_{logit}\| \approx 12$ при совпадающем
-# log-loss — параметр при $m = 48$ и коррелированном дизайне плохо
-# определён (информационная матрица $A^{\T}WA$ плохо обусловлена), но это
-# свойство задачи оценивания, а не оптимизации: оба метода сошлись к одной
-# точке. Метрики на отложенной выборке ($12$ точек, $2$ нуля): accuracy
-# $0{,}75$, precision $0{,}818 = 9/11$, recall $0{,}900 = 9/10$; оба нуля
-# отнесены к классу $1$ (FP $= 2$, TN $= 0$) — эти два ложных срабатывания
-# и занижают precision, а единственная пропущенная единица (FN $= 1$) —
-# recall. При малых выборках метрики иллюстративны, но различие
-# precision/recall видно. Контроль rem:score: $\sum_i \hat p_i =
-# 32{,}000000 = \sum_i y_i$ на обучении — первая компонента $a_i$ —
-# константа, и первое оценочное уравнение выполнено.
+# плато рядом: $25{,}276$ в конце ($25{,}268$ лучшее по траектории) при
+# выбранном $\eta_0 = 0{,}01$ (из проб $0{,}01\dots0{,}1$; batch $16$,
+# $k_0 = 200$). Пункт «GD — существенно медленнее IRLS» подтвердился:
+# фактически $32\,906$ итераций против $6$. Теория для шага $\eta = 1/L$:
+# сжатие градиента на итерацию есть $(1 - 1/\kappa)$, значит до точности
+# $\varepsilon$ требуется $\kappa\ln(1/\varepsilon)$ итераций. Грубая
+# оценка $\kappa_2(A_{tr})^2 = 2{,}18\cdot10^3$ даёт $\kappa_2^2\ln 10^7
+# \approx 35\,100$ — согласие с наблюдёнными $32\,906$ в пределах $7\%$.
+# Фактическая $\kappa = L/\mu$ с $L = d_1^2/4 = 22{,}08$ и $\mu =
+# \lambda_{\min}(A_{tr}^{\T}\widehat WA_{tr}) = 7{,}12\cdot10^{-3}$ в точке
+# минимума даёт $\kappa \approx 3{,}10\cdot10^3$ и $\kappa\ln 10^7 \approx
+# 50\,000$ — завышение наблюдения в $1{,}5$ раза. Граница пессимистична:
+# спектр гессиана в минимуме ($0{,}0071;\ 6{,}91;\ 8{,}43;\ 15{,}4$) сжат
+# весами $\hat p_i(1-\hat p_i) \le 1/4$ (перцентили $0{,}058\dots0{,}250$),
+# а $\mu$ относится к плохо определённому коллинеарному направлению, —
+# вдоль траектории GD локальная обусловленность лучше. Различие «$6$
+# против $32\,906$» — та же цена квадрата обусловленности, что в примере
+# 2, теперь в терминах итераций. Отдельно: $\|\hat\theta - \theta_{logit}\|
+# \approx 9{,}0$ при совпадающем log-loss — параметр при $m = 48$ и
+# коррелированном дизайне плохо определён (информационная матрица
+# $A^{\T}WA$ плохо обусловлена), но это свойство задачи оценивания, а не
+# оптимизации: оба метода сошлись к одной точке. Метрики на
+# стратифицированной отложенной выборке ($12$ точек, по $6$ объектов
+# каждого класса): матрица ошибок TP $= 5$, TN $= 0$, FP $= 6$, FN $= 1$,
+# accuracy $0{,}417$, precision $0{,}455 = 5/11$, recall $0{,}833 = 5/6$.
+# Оцененная граница перекошена к классу $1$ (на обучении $45$ из $48$
+# прогнозов — единицы), и метрики показывают перекос покомпонентно:
+# высокая recall ценой низкой precision. При этом качество ограничено
+# самими данными: граница при истинном $\theta_{logit}$ даёт на этом тесте
+# accuracy $0{,}583$ (на обучении $0{,}667$ против $0{,}729$ у оцененной) —
+# перекрытие классов сильное, $54$ точки из $60$ со скрытыми $p^* \in
+# (0{,}2;\,0{,}8)$. Прежняя ловушка примера (accuracy $0{,}75$ хуже
+# константного прогноза «все единицы» $0{,}833$ на тесте с дисбалансом
+# $10/2$) исчезла вместе с дисбалансом; пример ловушки accuracy при
+# дисбалансе — в разделе метрик конспекта. Контроль rem:score:
+# $\sum_i \hat p_i = 36{,}000000 = \sum_i y_i$ на обучении — первая
+# компонента $a_i$ — константа, и первое оценочное уравнение выполнено.
 
 # %% [markdown]
 # ## Пример 4. Разделимость классов и регуляризация логистической регрессии
@@ -686,45 +746,59 @@ fig.savefig(f"{FIGDIR}/fig-03.pdf", **SAVE_KW)
 # с оценкой максимального правдоподобия на (почти) линейно разделимой
 # выборке и как гребень делает решение устойчивым.
 #
-# **Предсказание до прогона.** Тот же дизайн, но $\theta^* = 3\theta_{logit}$:
-# классы почти разделимы. По rem:separation ожидаем: без регуляризации
-# $\|\theta_k\|$ растёт в ходе обучения, log-loss $\to 0$, оценка уходит на
-# бесконечность и IRLS не останавливается по критерию $\|\nabla Q\| < 10^{-8}$
-# за 150 итераций (на последней итерации $\|\theta\|$ — порядка $10^3$ и
-# выше); с гребнем $\alpha$, подобранным CV, норма конечна, log-loss на
-# отложенной выборке выше, чем у разделимого решения, но решение устойчиво.
-# Контроль оценочных уравнений: $\sum_i \hat p_i \approx \sum_i y_i$.
+# **Предсказание до прогона.** Тот же дизайн, $\theta^* = 3\theta_{logit}$
+# (скоринг втрое круче), но метки вероятностные: $y_i \sim
+# \mathrm{Bernoulli}\bigl(s(a_i^{\T}\theta^*)\bigr)$. Выборка почти
+# разделима: несколько точек «перекинется» против знака скрытого скоринга —
+# по rem:separation именно они делают оценку максимального правдоподобия
+# существующей (конечной). Ожидаем: без регуляризации IRLS сходится к ОМП,
+# $\|\theta_k\|$ выходит на плато большой конечной нормы, log-loss убывает
+# к $Q(\hat\theta) > 0$, $\|\nabla Q\|$ на последней итерации мала, но не
+# нуль; с гребнем $\alpha$ по CV норма умеренна, а на отложенной выборке
+# гребень не хуже ОМП — вероятностные метки штрафуют избыточную уверенность
+# разделимого решения на «перекинувшихся» точках. Контроль оценочных
+# уравнений: $\sum_i \hat p_i \approx \sum_i y_i$.
 
 # %%
 THETA_SEP = 3.0 * THETA_LOGIT
 z_sep = A @ THETA_SEP
-# Детерминированный порог скрытого скоринга: точная линейная разделимость.
-# При вероятностной разметке Bernoulli с конечными p* оценка МП существует
-# (см. вывод: несколько "перекинувшихся" точек останавливают рост нормы).
-y_sep = (z_sep > 0).astype(float)
+# Probabilistic labels: near-separable sample. The few flipped points keep
+# the overlap condition of thm:log-convex true, so the MLE exists (finite).
+p_sep = sigmoid(z_sep)
+rng4y = np.random.default_rng([SEED, 38])
+y_sep = (rng4y.random(M1) < p_sep).astype(float)
 viol = int(np.sum((z_sep > 0) & (y_sep == 0)) + np.sum((z_sep < 0) & (y_sep == 1)))
+viol_tr = int(np.sum((z_sep[TR] > 0) & (y_sep[TR] == 0))
+             + np.sum((z_sep[TR] < 0) & (y_sep[TR] == 1)))
 print(f"theta* = 3*theta_logit: скоринг std = {z_sep.std():.4g}; "
-      f"классы разделимы точно: нарушений знака скоринга = {viol} из {M1}")
+      f"метки Bernoulli(s(a^T theta*)): нарушений знака скоринга = {viol} из {M1} "
+      f"({viol_tr} на обучении) — выборка почти разделима")
 print(f"классы: {int(y_sep.sum())} единиц, {int((1 - y_sep).sum())} нулей; "
       f"тот же сплит: обучение {len(TR)}, отложенная {len(TE)}")
 y_tr_sep, y_te_sep = y_sep[TR], y_sep[TE]
 
-# --- IRLS без регуляризации: оценка уходит на бесконечность ---
+# --- IRLS без регуляризации: оценка максимального правдоподобия конечна ---
 th_plain, loss_plain, norm_plain_hist, gn_plain, it_plain = irls(
     A_tr, y_tr_sep, alpha=0.0, max_iter=150, tol=-1.0)
 NORM_PLAIN = float(norm_plain_hist[-1])
 print(f"IRLS без регуляризации, {it_plain} итераций:")
-print(f"  ||theta_150|| = {NORM_PLAIN:.6g} (на старте 0), "
-      f"log-loss = {loss_plain[-1]:.6g}")
+print(f"  ||theta_30|| = {norm_plain_hist[30]:.6g}, ||theta_150|| = {NORM_PLAIN:.6g} "
+      f"(на старте 0; плато ОМП)")
+print(f"  log-loss: Q(theta_30) = {loss_plain[30]:.6g}, "
+      f"Q(theta_150) = {loss_plain[-1]:.6g}")
+print(f"  ||grad Q(theta_150)|| = {gn_plain[-1]:.12g} (мала, но не нуль)")
 # argmax would silently return 0 if the threshold was never crossed
 passed_at = np.flatnonzero(gn_plain < 1e-8)
 if passed_at.size:
-    print(f"  ||grad Q|| на последней итерации = {gn_plain[-1]:.3g}; порог 1e-8 "
-          f"впервые пройден на итерации {int(passed_at[0])}")
+    print(f"  порог 1e-8 впервые пройден на итерации {int(passed_at[0])} "
+          f"(здесь это честная остановка: ОМП существует)")
 else:
-    print(f"  ||grad Q|| на последней итерации = {gn_plain[-1]:.3g}; "
-          f"порог 1e-8 не пройден ни разу")
-assert NORM_PLAIN > 100.0, "оценка должна уходить на бесконечность"
+    print(f"  порог 1e-8 не пройден ни разу")
+# The MLE of a near-separable sample is finite (the flipped points bound
+# it), so the runaway >100 regime of the exactly separable case is gone;
+# 25 separates the large MLE norm from the ridge norm (~4.5) and the true
+# scale ||3*theta_logit|| ~ 10.
+assert NORM_PLAIN > 25.0, "норма ОМП на почти разделимой выборке должна быть велика"
 check_golden("norm_plain", NORM_PLAIN, tol=0.5)
 
 # --- IRLS с гребнем: alpha по 5-кратной CV на log-loss ---
@@ -750,10 +824,16 @@ NORM_RIDGE = float(norm_ridge_hist[-1])
 print(f"IRLS с гребнем alpha = {ALPHA_RIDGE:.6g}:")
 print(f"  ||theta|| = {NORM_RIDGE:.6g}, log-loss (обучение) = {loss_ridge[-1]:.6g}, "
       f"||grad(Q+штраф)|| = {gn_ridge[-1]:.3g}, итераций = {it_ridge}")
-print(f"  log-loss на отложенной: без регуляризации = "
-      f"{logloss(A_te, y_te_sep, th_plain):.6g}, с гребнем = "
-      f"{logloss(A_te, y_te_sep, th_ridge):.6g}")
+LL_PLAIN = logloss(A_te, y_te_sep, th_plain)
+LL_RIDGE = logloss(A_te, y_te_sep, th_ridge)
+ACC_PLAIN = float(((sigmoid(A_te @ th_plain) > 0.5).astype(float) == y_te_sep).mean())
+ACC_RIDGE = float(((sigmoid(A_te @ th_ridge) > 0.5).astype(float) == y_te_sep).mean())
+print(f"  отложенная выборка: log-loss без регуляризации = {LL_PLAIN:.6g}, "
+      f"с гребнем = {LL_RIDGE:.6g}")
+print(f"  отложенная выборка: accuracy без регуляризации = {ACC_PLAIN:.4f}, "
+      f"с гребнем = {ACC_RIDGE:.4f}")
 check_golden("norm_ridge", NORM_RIDGE)
+check_golden("alpha_ridge", ALPHA_RIDGE)
 
 # контроль оценочных уравнений (rem:score): сумма предсказанных вероятностей
 for name, th in [("без регуляризации", th_plain), ("с гребнем", th_ridge)]:
@@ -761,7 +841,7 @@ for name, th in [("без регуляризации", th_plain), ("с греб�
     print(f"sum p_hat - sum y ({name}): {diff:+.6f} (должно быть ~0)")
 
 # %%
-fig, axes = plt.subplots(1, 2, figsize=(9.5, 3.8), layout="constrained")
+fig, axes = plt.subplots(1, 2, figsize=(10, 4.0), layout="constrained")
 
 ax = axes[0]
 ax.plot(np.arange(len(norm_plain_hist)), norm_plain_hist, "-", lw=1.2,
@@ -770,7 +850,7 @@ ax.plot(np.arange(len(norm_ridge_hist)), norm_ridge_hist, "-", lw=1.2,
         label=f"гребень $\\alpha = {ALPHA_RIDGE:.3g}$: ||theta|| = {NORM_RIDGE:.4f}")
 ax.set_xlabel("итерация k")
 ax.set_ylabel("$\\|\\theta_k\\|_2$")
-ax.set_title("разделимость: норма уходит на бесконечность")
+ax.set_title("почти разделимые данные: норма выходит на плато ОМП")
 ax.legend(fontsize=8)
 
 ax = axes[1]
@@ -780,39 +860,34 @@ ax.semilogy(np.arange(len(loss_ridge)), loss_ridge, "-", lw=1.2,
             label=f"гребень: {loss_ridge[-1]:.3g}")
 ax.set_xlabel("итерация k")
 ax.set_ylabel("log-loss $Q(\\theta_k)$ (обучение)")
-ax.set_title("log-loss стремится к нулю, минимум не достигается")
+ax.set_title("log-loss убывает к $Q(\\hat\\theta) > 0$")
 ax.legend(fontsize=8)
 fig.savefig(f"{FIGDIR}/fig-04.pdf", **SAVE_KW)
 
 # %% [markdown]
-# **Вывод:** механизм rem:separation подтвердился, количественный прогноз
-# — нет. Пункт «на последней итерации $\|\theta\|$ — порядка $10^3$ и
-# выше» **не подтвердился**: фактически $\|\theta_{150}\| = 717{,}8$ —
-# порог «$> 100$» пройден с запасом, но это ослабленная проверка. Темп
-# роста ниже прогноза, потому что градиент в машинной арифметике
-# обнуляется раньше, чем норма набирает $10^3$ (порог $\|\nabla Q\| <
-# 10^{-8}$ пройден уже на итерации $24$, см. ниже): после сатурации
-# вероятностей до точных $0$ и $1$ IRLS оценку дальше не двигает, и норма
-# застывает на $7{,}2\cdot10^2$. Содержательный итог прежний: оценка
-# уходит на бесконечность, log-loss $4{,}2\cdot10^{-11}$, минимум не
-# достигается. Пункт «IRLS не останавливается по критерию градиента» **не
-# подтвердился, и это содержательно**: порог формально пройден уже на
-# итерации $24$. Градиент вдоль разделяющего луча убывает экспоненциально
-# вместе с log-loss, а в машинной арифметике вероятности сатурируют до
-# точных $0$ и $1$ — после чего $\nabla Q$ обнуляется в точности. Так что
-# критерий остановки по градиенту на разделимых данных *ненадёжен*: в точной
-# арифметике градиент стремится к нулю вдоль луча $t\varphi$ при $t \to
-# \infty$ и конечный порог достигается тоже. Верный стоп-сигнал здесь —
-# рост $\|\theta_k\|$ и стремление log-loss к нулю (что и предлагает
-# rem:separation: «остановка по изменению прогнозов»); утверждение theory.md
-# «оценка не существует» не опровергается — оценивать попросту нечего.
-# Регуляризация исправляет постановку: $\alpha = 0{,}0042$ по CV даёт
-# конечную $\|\theta\| = 16{,}1$; log-loss на отложенной выборке выше, чем
-# у разделимого решения ($0{,}386$ против $2{,}2\cdot10^{-4}$), как и
-# предсказано, — цена за устойчивость. Контроль score-уравнений: без
-# регуляризации $\sum\hat p - \sum y = -0{,}000000$ (свойство выполняется
-# предельно, $\hat p$ сатурировали к $y$); с гребнем отклонение $-0{,}042$
-# — оценочные уравнения точны только для нерегуляризованной задачи.
+# **Вывод:** механизм rem:separation подтвердился с точностью до замены
+# «разделимой» на «почти разделимую» выборку. Метки вероятностные: $5$ точек
+# из $60$ «перекинулись» против знака скрытого скоринга ($4$ из $48$ на
+# обучении) — этого хватает, чтобы условие перекрытия выполнялось и оценка
+# максимального правдоподобия существовала. Без регуляризации IRLS к ней
+# сходится: $\|\theta_k\|$ быстро растёт в первые итерации и выходит на
+# плато большой конечной нормы — $\|\theta_{30}\| = \|\theta_{150}\| =
+# 52{,}19$; log-loss убывает с $33{,}27$ до $6{,}2700$ и дальше не движется;
+# $\|\nabla Q(\theta_{150})\| = 8{,}34\cdot10^{-15}$ — мала, но не нуль
+# (точное значение напечатано выше; порог $10^{-8}$ пройден на итерации
+# $10$ — здесь это честная остановка, а не ловушка точной разделимости:
+# норма и log-loss достигли предельных значений, а не застыли от сатурации
+# вероятностей). Регуляризация: $\alpha = 0{,}1334$ по 5-кратной CV даёт
+# $\|\theta\| = 4{,}485$ — гребень сжимает норму примерно в $12$ раз. На
+# отложенной выборке гребень **лучше**: log-loss $1{,}824$ против $3{,}621$,
+# accuracy $0{,}917$ против $0{,}833$ — избыточная уверенность ОМП
+# ($\|\hat\theta\| = 52$ при истинном масштабе $\|3\theta_{logit}\| \approx
+# 10$) штрафуется вероятностными метками на «перекинувшихся» точках, и
+# прежний вывод «гребень хуже на тесте — цена устойчивости» был артефактом
+# детерминированного порога разметки. Контроль score-уравнений: без
+# регуляризации $\sum\hat p - \sum y = -0{,}000000$ — машинный нуль
+# (свойство выполнено предельно); с гребнем отклонение $-0{,}414$ —
+# оценочные уравнения точны только для нерегуляризованной задачи.
 
 # %% [markdown]
 # ## Сводка: какие числа куда идут
@@ -828,10 +903,12 @@ rows = [
     ("MSE(4 строк)/MSE(OLS), пример 1", f"{RATIO_ROW4:.6g}", "theory.md, теорема Гаусса — Маркова"),
     ("среднее RSS/(m-n), пример 1", f"{SIG_HAT2_MEAN:.6g}", "theory.md, теорема о несмещённой оценке sigma^2"),
     ("наклон NE, пример 2", f"{SLOPE_NE:.6g}", "theory.md, thm:normal-bad; слайды"),
-    ("наклон QR, пример 2", f"{SLOPE_QR:.6g}", "theory.md, thm:qr; слайды"),
+    ("наклон SVD (numpy lstsq), пример 2", f"{SLOPE_QR:.6g}", "theory.md, rem:perturb; слайды"),
     ("kappa_2 диапазон, пример 2", f"{kappas.min():.3g} ... {kappas.max():.3g}", "theory.md, rem:perturb"),
     ("итераций IRLS, пример 3", f"{it_irls}", "theory.md, rem:irls-conv"),
     ("log-loss IRLS, пример 3", f"{IRLS_LOGLOSS:.6g}", "theory.md, раздел про IRLS"),
+    ("kappa = L/mu (факт.) и kappa_2^2, пример 3",
+     f"{KAPPA_ACT:.6g} / {KAPPA_CRUDE:.6g}", "theory.md, раздел «Обучение первыми методами»"),
     ("итераций GD (eta = 1/L), пример 3", f"{it_gd}", "theory.md, раздел «Обучение первыми методами»"),
     ("eta0 SGD, пример 3", f"{ETA0_SGD}", "theory.md, SGD (выбор шага)"),
     ("accuracy / precision / recall, пример 3",
@@ -846,7 +923,8 @@ for name, val, dst in rows:
     print(f"{name:<42} {val:<28} {dst}")
 print()
 print("фигуры: fig-01.pdf (разброс коэффициентов, фильтр гребня), "
-      "fig-02.pdf (kappa^2 против kappa), fig-03.pdf (данные, сходимость), "
-      "fig-04.pdf (разделимость) — в questions/18-linear-logistic-regression/figures/")
+      "fig-02.pdf (kappa^2 против kappa), fig-03.pdf (данные, сходимость: "
+      "разрыв Q - Q*), fig-04.pdf (почти разделимые данные) — в "
+      "questions/18-linear-logistic-regression/figures/")
 print("README вопроса получает итог петли review-fix-loop, "
       "а не числа из этого ноутбука.")
