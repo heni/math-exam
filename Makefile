@@ -8,7 +8,8 @@
 #   make check                проверки согласованности
 #   make venv                 создать .venv и поставить requirements.txt
 #   make freeze               зафиксировать версии в requirements-lock.txt
-#   make clean                удалить собранные артефакты
+#   make clean                удалить временные файлы (кэши Python)
+#   make cleanall             удалить собранные артефакты всех вопросов
 #
 # .PHONY-цели не параллелятся по вопросам сами: для параллельной сборки
 # использовать `make -j4`.
@@ -34,7 +35,7 @@ THEORY_PDF := $(THEORY_SRC:.md=.pdf)
 SLIDES_PDF := $(SLIDES_SRC:.md=.pdf)
 NB_OUT     := $(NB_SRC:.py=.ipynb)
 
-.PHONY: all theory slides notebooks check clean new list help venv freeze
+.PHONY: all theory slides notebooks check clean cleanall new list help venv freeze
 
 # Ноутбуки первыми: они строят картинки, которые вставляют конспект и слайды.
 # При обратном порядке PDF собирается раньше своей картинки и показывает
@@ -107,6 +108,12 @@ list:
 	@bash tools/status.sh
 
 clean:
+	@rm -rf tools/__pycache__ .ruff_cache
+	@echo "временные файлы удалены"
+
+# Полная очистка — редкая операция (пересборка всего с нуля):
+# артефакты закоммичены как доставляемые, их удаление затрагивает все вопросы.
+cleanall:
 	@rm -f questions/*/theory.pdf questions/*/slides.pdf questions/*/examples.ipynb
 	@echo "собранные артефакты удалены"
 

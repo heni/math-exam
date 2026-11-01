@@ -413,6 +413,52 @@ PYLOST
 [ $? -eq 0 ] || fail=1
 
 
+echo "== 14. Чужие артефакты в ветке вопроса =="
+# Ветка вопроса обязана нести только его артефакты. Пересборка PDF чужих
+# вопросов байт-неперепроизводима (один сжатый поток отличается между прогонами
+# на одном исходнике), поэтому голый make после правки общей предпосылки
+# (преамбулы, defaults) даёт в diff десятки чужих бинарников без изменения
+# содержания. Гейт сравнивает изменённые артефакты (закоммиченные с merge-base
+# main + незакоммиченные) с каталогом вопроса по номеру из имени ветви;
+# инфраструктурные ветви (имя не q<NN>-<slug>) и main не проверяются.
+branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+case "$branch" in
+  q[0-9]*-*)
+    # Каталог вопроса берём по номеру из имени ветви: у ветвей правок
+    # (q06-examiner-review-2) slug не совпадает со slug вопроса.
+    num=${branch#q}; num=${num%%-*}
+    qdir=$(ls -d "questions/$num-"*/ 2>/dev/null | head -1)
+    qdir=${qdir%/}
+    if [ -z "$qdir" ]; then
+      note "ветка $branch заявляет вопрос $num, каталога questions/$num-* нет — НЕ ПРОВЕРЕНО"
+    else
+      mb=$(git merge-base main HEAD 2>/dev/null || true)
+      if [ -z "$mb" ]; then
+        note "локальной ветви main нет — НЕ ПРОВЕРЕНО"
+      else
+        out=$({ git diff --name-only "$mb" HEAD 2>/dev/null
+                git status --porcelain | awk '{print $2}'
+              } | sort -u | while read -r f; do
+                case "$f" in
+                  questions/*/theory.pdf|questions/*/slides.pdf|questions/*/examples.ipynb|questions/*/figures/*.pdf)
+                    case "$f" in
+                      "$qdir"/*) : ;;
+                      *) echo "  [!] $f — артефакт не каталога $qdir в ветке $branch" ;;
+                    esac
+                    ;;
+                esac
+              done)
+        if [ -n "$out" ]; then printf '%s\n' "$out"; fail=1; fi
+      fi
+    fi
+    ;;
+  q[0-9]*)
+    note "ветка $branch без slug не похожа на ветвь вопроса — НЕ ПРОВЕРЕНО"
+    ;;
+esac
+note "проверено"
+
+
 echo
 [ "$fail" -eq 0 ] && echo "ИТОГ: чисто" || echo "ИТОГ: есть замечания"
 exit "$fail"
