@@ -55,12 +55,20 @@ GOLDEN = {
     "var_is_n1": (0.18518518518518512, 1e-12),
     "var_is_n2": (1.5987199999999984, 1e-12),
     "I_2d_analytic": (2.9524924420125593, 1e-12),
-    # sampled, 16 scramblings: tolerance ~4 sigma of the replicate mean
-    "qmc_err_N2_18": (3.001604208881147e-11, 0.05),
+    # deterministic LP-tau prefix mean at N=2^18: repr pinned
+    "qmc_err_N2_18": (3.8142137245237155e-06, 1e-9),
     "mc_err_N2_18": (0.000671759903571503, 0.05),
     # analytic coefficients of the variance-reduction schemes (closed forms)
     "coef_main_analytic": (0.04365076924514407, 1e-12),
     "coef_strat_analytic": (0.0026594472922521818, 1e-12),
+    # sampled slopes and coefficients (repr from a run of this file)
+    "coef_is_sobol": (0.026908428183502142, 1e-9),
+    "slope_mc_2": (-0.45348685749449413, 0.15),
+    "slope_mc_8": (-0.43404084695667067, 0.15),
+    "slope_qmc_unscrambled": (-0.99655141583403, 0.1),
+    # control MC estimates at N=2^17 (repr from a run of this file)
+    "mc_relerr_V3": (0.002158539623161312, 0.2),
+    "mc_relerr_V10": (0.03547260439254167, 0.2),
 }
 
 
@@ -92,9 +100,12 @@ def check_golden(name, value):
 # $\sqrt{J(1-J)/N} \approx 0{,}00154$, то есть допуск — более $6$ сигм.
 # (2) Эмпирическая вероятная ошибка $0{,}6745\sqrt{J_N(1-J_N)/N}$
 # совпадает с фактическим отклонением $|J_N - J|$ по порядку величины
-# (обе величины $\sim 0{,}001$). (3) Траектория $J_N$ сходится к $0{,}95$
-# со скоростью $N^{-1/2}$: на графике «траектория против $1/\sqrt N$»
-# разброс вокруг предела не зависит от $N$.
+# (обе величины $\sim 0{,}001$). (3) Вероятная ошибка пропорциональна
+# $1/\sqrt N$, поэтому на графике «траектория против $1/\sqrt N$»
+# траектория $J_N$ должна быть зажата **клином** $J \pm r_N$ с вершиной в
+# пределе $J = 0{,}95$: обе границы клина — прямые через точку $(0, J)$.
+# Полоса постоянной ширины получилась бы в других координатах —
+# $\sqrt N\,(J_N - J)$ против $N$.
 
 # %%
 N_EXPERIMENTS = 20_000
@@ -135,28 +146,37 @@ print(
 check_golden("cover_u_N20000", J_hat)
 
 # %% [markdown]
-# Проверка скорости сходимости: на графике с осью $1/\sqrt N$ разброс
-# траектории вокруг предела должен быть примерно постоянным
-# (ошибка $\propto N^{-1/2}$).
+# Проверка скорости сходимости: границы клина $J \pm r_N$ в координатах
+# $1/\sqrt N$ — прямые $J \pm 0{,}6745\sqrt{J(1-J)}\,x$, то есть линейные
+# функции от $x = 1/\sqrt N$; траектория должна лежать внутри клина
+# (за пределами — примерно половина случайных реализаций).
 
 # %%
 fig, ax = plt.subplots(figsize=(6, 3.6), layout="constrained")
+xs = 1 / np.sqrt(N_GRID)
 ax.axhline(0.95, color="black", linewidth=1, linestyle="--", label=r"$J = 0.95$")
-ax.plot(1 / np.sqrt(N_GRID), traj, ".-", markersize=3, linewidth=0.8,
-        label=r"оценка $J_N$")
+k_wedge = 0.6745 * np.sqrt(0.95 * 0.05)
+x_line = np.array([0.0, xs.max()])
+ax.plot(x_line, 0.95 + k_wedge * x_line, color="tab:red", linewidth=1,
+        linestyle=":", label=r"границы клина $J \pm r_N$")
+ax.plot(x_line, 0.95 - k_wedge * x_line, color="tab:red", linewidth=1,
+        linestyle=":")
+ax.plot(xs, traj, ".-", markersize=3, linewidth=0.8, label=r"оценка $J_N$")
 ax.set_xlabel(r"$1/\sqrt{N}$")
 ax.set_ylabel(r"оценка вероятности накрытия $J_N$")
-ax.legend(loc="lower right")
+ax.legend(loc="lower right", fontsize=8)
 fig.savefig(f"{FIGDIR}/fig-01.pdf", **SAVE_KW)
 
 # %% [markdown]
 # **Вывод:** предсказания подтвердились: оценка близка к $0{,}95$, эмпирическая
 # вероятная ошибка и фактическое отклонение одного порядка
-# (отношение напечатано выше). Сходимость «в масштабе $1/\sqrt N$» видна на
-# рисунке: траектория зажата полосой постоянной ширины в этих координатах.
-# Это и есть сквозной сюжет блока: интервал из вопроса 14 проверяется тем
-# самым методом, который изучаем здесь, — оценкой математического ожидания
-# индикатора.
+# (отношение напечатано выше). На рисунке виден клин: в координатах
+# $1/\sqrt N$ вероятная ошибка растёт линейно от абсциссы, и траектория
+# сходится к вершине клина $J = 0{,}95$ — именно так выглядит сходимость
+# со скоростью $N^{-1/2}$. (Полоса постоянной ширины получилась бы в
+# координатах $\sqrt N\,(J_N - J)$ против $N$.) Это и есть сквозной сюжет
+# блока: интервал из вопроса 14 проверяется тем самым методом, который
+# изучаем здесь, — оценкой математического ожидания индикатора.
 
 # %% [markdown]
 # ## Пример 2. Проклятие размерности: метод Монте-Карло против сеточной квадратуры
@@ -173,17 +193,26 @@ fig.savefig(f"{FIGDIR}/fig-01.pdf", **SAVE_KW)
 # $V_n \approx 2^n \cdot (\text{доля попаданий})$.
 #
 # **Предсказание (до прогона).** (1) На логарифмической шкале ошибка метода
-# Монте-Карло падает с наклоном $\approx -1/2$ при любой размерности
-# $n = 2, 8, 12$. (2) Сеточная квадратура (произведение средних прямоугольников
-# по равномерной сетке с $m$ узлами на координату, $N = m^n$) при $n = 2$
-# заметно точнее метода Монте-Карло при том же $N$, но наклон её ошибки
-# равен $\approx -1/n$: при $n = 8$ это $-0{,}125$, при $n = 12$ — $-0{,}083$,
-# и в высокой размерности квадратура проигрывает уже при умеренных $N$.
-# (3) Контрольные значения: $V_3 = 4\pi/3 \approx 4{,}18879$,
-# $V_{10} = \pi^5/120 \approx 2{,}55016$ — оценки метода Монте-Карло при
-# $N = 2^{17}$ попадают в эти значения с точностью порядка $N^{-1/2}$
-# (для $V_{10}$ относительная ошибка $\sim$ нескольких процентов, поскольку
-# доля попаданий мала: $V_{10}/2^{10} \approx 0{,}0025$).
+# Монте-Карло падает с наклоном $\approx -1/2$; для $n = 12$ наклон
+# измерим лишь по хвосту, где на реплику в среднем больше единицы попаданий
+# ($N \gtrsim 2^{14}$: $V_{12}/2^{12} \approx 3{,}3\cdot10^{-4}$), а при
+# меньших $N$ (в среднем меньше одного попадания) ошибка $100\%$ у нулевых
+# реплик и наклон не определён.
+# (2) Сеточная квадратура (произведение средних прямоугольников с $m$ узлами
+# на координату, $N = m^n$): подынтегральная функция — индикатор, то есть
+# разрывная, и теория даёт для неё эффективный порядок единицы (погрешность
+# сносят пограничные ячейки), то есть тренд $\approx -1/n$, а не $-4/n$
+# формулы Симпсона. Точки ошибки при этом скачут от сетки к сетке (зависит
+# от того, как узлы ложатся на границу шара), поэтому наклон квадратуры
+# устойчиво не измерить — показываем точки и эталонные наклоны без претензии
+# на подгонку. Устойчиво измеримые факты: при $n = 2$ сетка заметно точнее
+# МК при малом $N$; при $n = 8$ и $n = 12$ квадратура застревает на ошибке
+# порядка единицы до недостижимых объёмов ($m^n$). (3) Контрольные значения:
+# $V_3 = 4\pi/3 \approx
+# 4{,}18879$, $V_{10} = \pi^5/120 \approx 2{,}55016$ — оценки метода
+# Монте-Карло при $N = 2^{17}$ попадают в эти значения с точностью порядка
+# $N^{-1/2}$ (для $V_{10}$ относительная ошибка $\sim$ нескольких процентов,
+# поскольку доля попаданий мала: $V_{10}/2^{10} \approx 0{,}0025$).
 
 # %%
 from scipy.special import gamma
@@ -195,8 +224,23 @@ def ball_volume(d):
 
 def mc_ball_volume(d, n, rng):
     pts = rng.uniform(-1.0, 1.0, size=(n, d))
-    frac = np.mean(np.sum(pts * pts, axis=1) <= 1.0)
-    return (2.0 ** d) * frac
+    hits = np.sum(pts * pts, axis=1) <= 1.0
+    return (2.0 ** d) * hits.mean(), int(hits.sum())
+
+
+def mc_ball_curve(d, n_replicates=16):
+    """Mean |error| curve over prefix estimates, averaged over independent
+    replicates — a single stream bounces too much for a slope estimate."""
+    errs = np.zeros(len(POWERS))
+    total_hits = np.zeros(len(POWERS), dtype=int)
+    for rep in range(n_replicates):
+        stream = np.random.default_rng([SEED, 9, d, rep])
+        pts = stream.uniform(-1.0, 1.0, size=(2 ** POWERS[-1], d))
+        hits_cum = np.cumsum(np.sum(pts * pts, axis=1) <= 1.0)
+        ests = (2.0 ** d) * hits_cum[2 ** POWERS - 1] / (2.0 ** POWERS)
+        errs += np.abs(ests - ball_volume(d)) / ball_volume(d)
+        total_hits += hits_cum[2 ** POWERS - 1]
+    return errs / n_replicates, total_hits / n_replicates
 
 
 def grid_ball_volume(d, m):
@@ -210,17 +254,32 @@ def grid_ball_volume(d, m):
     return (2.0 ** d) * frac
 
 
+def slope_fit(ns, errs, lo, hi):
+    m = (ns >= lo) & (ns <= hi)
+    return np.polyfit(np.log2(ns[m]), np.log2(errs[m]), 1)[0]
+
+
 DIMS_MC = [2, 8, 12]
 POWERS = np.arange(8, 18)  # N = 256 .. 131072
-mc_err = {d: [] for d in DIMS_MC}
+mc_err = {}
+mc_hits = {}
 for d in DIMS_MC:
-    true_v = ball_volume(d)
-    for p in POWERS:
-        est = mc_ball_volume(d, 2 ** p, rng_ex2)
-        mc_err[d].append(abs(est - true_v) / true_v)
+    mc_err[d], mc_hits[d] = mc_ball_curve(d)
+
+# Наклоны МК: полный диапазон для n=2, 8; для n=12 — только где есть
+# попадания (иначе ошибка тривиально равна 1 и наклон не определён).
+slope_mc = {
+    2: slope_fit(2.0 ** POWERS, mc_err[2], 2 ** 8, 2 ** 17),
+    8: slope_fit(2.0 ** POWERS, mc_err[8], 2 ** 8, 2 ** 17),
+    12: slope_fit(2.0 ** POWERS, mc_err[12], 2 ** 14, 2 ** 17),
+}
+print("наклоны МК (по среднему из 16 реплик):",
+      {d: f"{s:.2f}" for d, s in slope_mc.items()})
+print(f"среднее число попаданий при n=12 (16 реплик): "
+      f"{dict(zip([f'2^{p}' for p in POWERS], mc_hits[12]))}")
 
 DIMS_GRID = [2, 8, 12]
-MS = {2: np.arange(2, 300, 6), 8: np.arange(2, 5), 12: np.arange(2, 4)}
+MS = {2: np.arange(2, 300, 6), 8: np.arange(2, 7), 12: np.arange(2, 4)}
 grid_pts = {}
 grid_err = {}
 for d in DIMS_GRID:
@@ -233,15 +292,37 @@ for d in DIMS_GRID:
     grid_pts[d] = np.array(ns)
     grid_err[d] = np.array(es)
 
+# Наклон квадратуры по скачущим точкам не измеряем (см. предсказание):
+# печатаем МНК-тренд как справку, без претензии на измерение порядка.
+slope_grid_trend = {
+    d: slope_fit(grid_pts[d], grid_err[d], grid_pts[d].min(), grid_pts[d].max())
+    for d in DIMS_GRID
+}
+print("МНК-тренд сетки (точки скачут, справочно):",
+      {d: f"{s:.2f}" for d, s in slope_grid_trend.items()})
+check_golden("slope_mc_2", slope_mc[2])
+check_golden("slope_mc_8", slope_mc[8])
+
 for d in [3, 10]:
     print(f"V_{d} = {ball_volume(d):.10f}")
 check_golden("V3_analytic", ball_volume(3))
 check_golden("V10_analytic", ball_volume(10))
 
+# control announced in the prediction: plain MC estimates of V_3 and V_10
+for d in [3, 10]:
+    est_v, _ = mc_ball_volume(d, 2 ** 17, rng_ex2)
+    rel = abs(est_v - ball_volume(d)) / ball_volume(d)
+    print(f"MC-оценка V_{d} при N=2^17: {est_v:.6f} "
+          f"(истина {ball_volume(d):.6f}, отн. ошибка {rel:.2%})")
+    check_golden(f"mc_relerr_V{d}", rel)
+
 # %% [markdown]
 # График: относительная ошибка против числа вычислений подынтегральной
 # функции, обе оси логарифмические. Пунктир — эталонные наклоны $-1/2$
-# (метод Монте-Карло) и $-1/n$ (сеточная квадратура).
+# (метод Монте-Карло) и $-1/n$ (сеточная квадратура с разрывным подынтегральным
+# выражением). Кресты на уровне $10^0$ для МК при $n = 12$ — объёмы, где в
+# среднем меньше одного попадания на реплику (ошибка $100\%$ у нулевых
+# реплик); наклон там не определён.
 
 # %%
 fig, ax = plt.subplots(figsize=(6.4, 4.0), layout="constrained")
@@ -270,6 +351,11 @@ ax.plot(ns, 3e-1 * (ns / ns[0]) ** (-0.5), "k--", linewidth=1,
         label=r"наклон $-1/2$")
 ax.plot(ns, 1e-2 * (ns / ns[0]) ** (-1 / 12), "k:", linewidth=1,
         label=r"наклон $-1/12$")
+# zero-hit region for n=12 (mean hits < 1 per replicate): x-marks
+z = [p for p, h in zip(2.0 ** POWERS, mc_hits[12]) if h < 1.0]
+if z:
+    ax.plot(z, [1.0] * len(z), "x", color="tab:red", markersize=7,
+            label="МК $n=12$: нет попаданий")
 ax.set_xscale("log")
 ax.set_yscale("log")
 ax.set_xlabel(r"число вычислений функции $N$")
@@ -278,15 +364,19 @@ ax.legend(loc="lower left", fontsize=8)
 fig.savefig(f"{FIGDIR}/fig-02.pdf", **SAVE_KW)
 
 # %% [markdown]
-# **Вывод:** предсказание подтвердилось по всем трём пунктам. Ошибка метода
-# Монте-Карло идёт с наклоном $-1/2$ при любой размерности (кривые $n=2$,
-# $n=8$, $n=12$ параллельны пунктирной прямой). Сеточная квадратура в
-# $n=2$ заметно точнее при малом $N$, но её наклон при $n=12$ равен
-# $-1/12$: кривая почти горизонтальна, и при $N \gtrsim 10^3$ метод
-# Монте-Карло выигрывает в $n=8$ уже при $N \approx 10^4$. Точка пересечения
-# для $n=8$ видна на графике: сетка с $m=4$ ($N=65\,536$) ещё впереди
-# части кривой МК, но наклоны говорят, что при дальнейшем росте $N$
-# картина не изменится в пользу сетки.
+# **Вывод.** Наклоны напечатаны выше. Средняя по 16 репликам кривая метода
+# Монте-Карло идёт с наклоном, близким к $-1/2$ (измерено $-0{,}43\ldots-0{,}45$
+# при $n = 2, 8$), при $n = 12$ до $N \approx 2^{11}$ в среднем меньше одного
+# попадания на реплику (кресты на уровне $100\%$ — наклон там не
+# определён), а по хвосту $N \gtrsim 2^{14}$ кривая встаёт в общий наклон:
+# независимость порядка от размерности подтверждена на измеримой части.
+# Точки сетки скачут, и наклон квадратуры устойчиво не измеряется; устойчивый
+# измеренный контраст — другой: при $n = 8$ и $n = 12$ квадратура держит
+# ошибку порядка единицы до недостижимых объёмов (при $n = 12$ это
+# $N \gtrsim 5\cdot10^{5}$), а метод Монте-Карло сходится с тем же порядком
+# $-1/2$ при любой размерности. Для гладких подынтегральных функций картина
+# та же по структуре: порядок $-r/n$ квадратур против независимого от $n$
+# порядка $-1/2$ метода Монте-Карло.
 
 
 # %% [markdown]
@@ -307,13 +397,16 @@ fig.savefig(f"{FIGDIR}/fig-02.pdf", **SAVE_KW)
 # $\tfrac{e^2-1}{2}-(e-1)^2 \approx 0{,}2420$; выделение главной части
 # с $g_1 = 1+x$: $\Var(e^\xi - 1 - \xi) \approx 0{,}0437$ (выигрыш в
 # $5{,}5$ раза); симметризованная $\approx 0{,}0039$ (выигрыш $\approx 31$
-# раз на равное число вычислений $g$); существенная выборка с оптимальной
-# плотностью $p^* \propto e^x$ обращает дисперсию в нуль (оценка тождественно
-# равна $e-1$ — предложение о существенной выборке, предельный случай);
-# расслоение на $L = 10$ пропорциональных слоёв: коэффициент
-# $\tfrac{1}{L}\sum_h\sigma_h^2 \approx 0{,}0027$ (выигрыш в $\sim 90$ раз) —
-# межслоевая дисперсия устраняется полностью, а в узком слое $e^x$ почти
-# линейна, так что внутрислоевой остаток мал.
+# раз на равное число вычислений $g$); существенная выборка с реальной
+# плотностью $p_1 = \tfrac23(1+x)$ из примера Соболя [10, гл. 3 § 3.2]:
+# коэффициент $\tfrac32\int_0^1 \tfrac{e^{2x}}{1+x}\,dx - I^2 \approx 0{,}0269$
+# (выигрыш около $9$ раз); расслоение на $L = 10$ пропорциональных слоёв:
+# коэффициент $\tfrac{1}{L}\sum_h\sigma_h^2 \approx 0{,}0027$ (выигрыш в
+# $\sim 90$ раз) — межслоевая дисперсия устраняется полностью, а в узком слое
+# $e^x$ почти линейна, так что внутрислоевой остаток мал. Предельный случай
+# $p^* \propto e^x$ (дисперсия нуль, оценка тождественно $e-1$) на графике не
+# показан: он обнулил бы логарифмическую шкалу; проверяется отдельной строкой
+# печати ниже.
 
 # %%
 I_EXP = np.e - 1
@@ -367,8 +460,15 @@ def estimate_antithetic(n, rng):
     return ((np.exp(u) + np.exp(1.0 - u)) / 2).mean()
 
 
-def estimate_importance(n, rng):
-    # p* ∝ e^x: ξ = ln(1 + (e-1)γ); the estimator is identically e - 1
+def estimate_importance_real(n, rng):
+    # Sobol's practical density p1 = (2/3)(1+x): xi = sqrt(1+3u) - 1
+    u = rng.uniform(size=n)
+    xi = np.sqrt(1.0 + 3.0 * u) - 1.0
+    return np.mean(1.5 * np.exp(xi) / (1.0 + xi))
+
+
+def estimate_importance_star(n, rng):
+    # limiting case p* ∝ e^x: xi = ln(1 + (e-1)u); the estimator is e - 1
     u = rng.uniform(size=n)
     xi = np.log1p((np.e - 1.0) * u)
     return np.mean(np.exp(xi) * 1.0 / (np.exp(xi) / I_EXP))
@@ -392,10 +492,16 @@ def estimate_stratified(n, rng):
 SCHEMES = {
     "простейшая": estimate_plain,
     "выделение главной части": estimate_main_part,
-    "существенная выборка (p*∝e^x)": estimate_importance,
+    "существенная выборка, p1=(2/3)(1+x)": estimate_importance_real,
     "симметризация": estimate_antithetic,
     f"расслоение, L={L_STRATA}": estimate_stratified,
 }
+
+# The p* limiting case breaks the log scale of fig-03; verify it separately:
+star_reps = np.array([estimate_importance_star(N_POINTS, rng_ex3)
+                      for _ in range(M_REPEATS)])
+print(f"предельный случай p*∝e^x: среднее = {star_reps.mean():.10f} "
+      f"(= e - 1), разброс = {star_reps.std(ddof=1):.2e} (машинный нуль)")
 
 measured = {}
 for name, est in SCHEMES.items():
@@ -431,23 +537,29 @@ def analytic_stratified():
     return total / L_STRATA
 
 
+def analytic_importance_sobol():
+    # Var of 1.5*e^ξ/(1+ξ), ξ ~ p1 = (2/3)(1+x); Sobol [10], § 3.2.1: 0.0269
+    from scipy.integrate import quad
+    second, _ = quad(lambda x: 1.5 * np.exp(2 * x) / (1.0 + x), 0.0, 1.0,
+                     epsabs=1e-14)
+    return second - I_EXP ** 2
+
+
 COEF_ANALYTIC = {
     "простейшая": VAR_PLAIN,
     "выделение главной части": analytic_main_part(),
-    "существенная выборка (p*∝e^x)": 0.0,
+    "существенная выборка, p1=(2/3)(1+x)": analytic_importance_sobol(),
     "симметризация": 2 * VAR_ANT,
     f"расслоение, L={L_STRATA}": analytic_stratified(),
 }
 check_golden("coef_main_analytic", COEF_ANALYTIC["выделение главной части"])
 check_golden("coef_strat_analytic", COEF_ANALYTIC[f"расслоение, L={L_STRATA}"])
+check_golden("coef_is_sobol", COEF_ANALYTIC["существенная выборка, p1=(2/3)(1+x)"])
 print("\nкоэффициенты дисперсии на вычисление g (измерено vs аналитика):")
 for name in SCHEMES:
     cm = max(coef_meas[name], 1e-30)
     if name == "простейшая":
         print(f"  {name:32s}: {cm:.5f} vs {COEF_ANALYTIC[name]:.5f}")
-    elif COEF_ANALYTIC[name] == 0.0:
-        print(f"  {name:32s}: {cm:.5f} vs 0  (выигрыш ∞: дисперсия обращена "
-              f"в нуль)")
     else:
         print(f"  {name:32s}: {cm:.5f} vs {COEF_ANALYTIC[name]:.5f}"
               f"  (выигрыш {VAR_PLAIN / cm:.1f}x)")
@@ -458,17 +570,18 @@ coefs = [max(coef_meas[n], 1e-30) for n in names]
 ax.bar(range(len(names)), coefs, color="steelblue")
 ax.set_yscale("log")
 ax.set_xticks(range(len(names)))
-ax.set_xticklabels([n.replace(" (p*∝e^x)", "") for n in names],
-                   rotation=20, ha="right", fontsize=8)
+ax.set_xticklabels(names, rotation=20, ha="right", fontsize=8)
 ax.set_ylabel(r"коэффициент дисперсии $\mathsf{D}\zeta$")
 ax.axhline(VAR_PLAIN, color="black", linewidth=1, linestyle="--")
 fig.savefig(f"{FIGDIR}/fig-03.pdf", **SAVE_KW)
 
 # %% [markdown]
-# **Вывод:** предсказание подтвердилось по всем пяти схемам. Существенная
-# выборка с $p^* \propto e^x$ даёт оценку, тождественно равную $e - 1$
-# (измеренная дисперсия $\sim 10^{-34}$ — машинный нуль, предельный случай
-# предложения о существенной выборке). Симметризация выигрывает в
+# **Вывод:** предсказание подтвердилось по всем пяти схемам (числа
+# напечатаны в блоке выше). Существенная выборка с реальной плотностью
+# $p_1 = \tfrac23(1+x)$ даёт выигрыш около $9$ раз — это и есть практический
+# режим приёма; предельный случай $p^* \propto e^x$ оценка тождественно равна
+# $e - 1$ (разброс повторов — машинный нуль, порядка $10^{-16}$ относительно,
+# а не «измеренная нулевая дисперсия»). Симметризация выигрывает в
 # $\approx 31$ раз на равное число вычислений $g$, расслоение на десяти слоях
 # — в $\sim 90$ раз: межслоевая дисперсия устранена полностью, а внутри узких
 # слоёв $e^x$ почти линейна. Заметим, что выигрыш расслоения здесь особенно
@@ -487,18 +600,21 @@ fig.savefig(f"{FIGDIR}/fig-03.pdf", **SAVE_KW)
 # Объект — гладкий интеграл с известным значением:
 # $I = \int_{[0,1]^2} e^{x_1 + x_2}\,dx = (e - 1)^2 \approx 2{,}95249$
 # (та же подынтегральная функция, что в примере 3, теперь двумерная).
-# Сравниваем: псевдослучайный метод Монте-Карло и квазислучайную
-# ЛП$\tau$-последовательность (`scipy.stats.qmc.Sobol`, scrambled-вариант с
-# фиксированным seed — скремблирование сохраняет низкую невязку и делает
-# точки воспроизводимыми).
+# Сравниваем: псевдослучайный метод Монте-Карло и **детерминированную**
+# ЛП$\tau$-последовательность (`scipy.stats.qmc.Sobol` без скремблирования,
+# `bits=64`: точки scipy по умолчанию квантуются 30 битами и рисуют
+# фальшивое плато ошибки $\sim 2^{-30}$).
 #
-# **Предсказание (до прогона).** (1) Ошибка псевдослучайного метода на
-# логарифмической шкале идёт с наклоном $\approx -1/2$. (2) Ошибка
-# квазислучайной квадратуры круче: теоретическая граница $O(N^{-1}\ln^2 N)$
-# в размерности $n = 2$ даёт эффективный наклон близкий к $-1$ на доступных
-# $N$. (3) При $N = 2^{18}$ квазислучайная ошибка заметно (на порядки)
-# меньше случайной; при этом доверительный интервал по квазислучайной схеме
-# не строится — есть только детерминированная оценка через отклонение.
+# **Предсказание (до прогона).** (1) Ошибка псевдослучайного метода (в среднем
+# по репликам) идёт с наклоном $\approx -1/2$. (2) Для детерминированной
+# ЛП$\tau$-последовательности теоретическая граница $O(N^{-1}\ln^2 N)$ в
+# размерности $n = 2$ даёт чистый наклон около $-1$ на доступных $N$, без
+# усреднения по реализациям. (3) При $N = 2^{18}$ квазислучайная ошибка
+# ожидается порядка нескольких $10^{-6}$ — на два с лишним порядка меньше
+# псевдослучайной. Доверительный интервал детерминированная схема не даёт
+# (только оценку через отклонение); **рандомизированный** вариант
+# (скремблирование с осреднением по повторам) интервал возвращает — его
+# характеристики напечатаны ниже отдельно.
 
 # %%
 D = 2
@@ -522,46 +638,63 @@ def mc_2d_errors(n_replicates=16):
     return errs / n_replicates
 
 
-def qmc_2d_errors(n_replicates=16):
-    """Mean |error| over independent scramblings of one LP-tau sequence.
+def qmc_2d_errors():
+    """Deterministic LP-tau sequence (no scrambling), prefix means.
     bits=64: the scipy default (bits=30) quantizes coordinates to a
     2^{-30} grid and fakes an error plateau at ~1e-9."""
     from scipy.stats import qmc
 
-    errs = np.zeros(len(NS))
+    engine = qmc.Sobol(d=D, scramble=False, bits=64)
+    pts = engine.random(NS[-1])
+    vals = np.exp(pts.sum(axis=1))
+    ests = np.array([vals[:n].mean() for n in NS])
+    return np.abs(ests - I_2D) / I_2D
+
+
+def rqmc_stats(n_replicates=64):
+    """Randomized QMC: independent scramblings; mean error, RMSE and a
+    95% interval half-width from the replicates."""
+    from scipy.stats import qmc
+
+    errs = np.zeros(n_replicates)
     for rep in range(n_replicates):
         engine = qmc.Sobol(d=D, scramble=True, bits=64,
-                           seed=np.random.default_rng([SEED, 7, rep]))
+                           seed=np.random.default_rng([SEED, 8, rep]))
         pts = engine.random(NS[-1])
-        vals = np.exp(pts.sum(axis=1))
-        ests = np.array([vals[:n].mean() for n in NS])
-        errs += np.abs(ests - I_2D) / I_2D
-    return errs / n_replicates
+        est = np.exp(pts.sum(axis=1)).mean()
+        errs[rep] = abs(est - I_2D) / I_2D
+    half = 1.96 * errs.std(ddof=1) / np.sqrt(n_replicates)
+    return errs.mean(), errs.std(ddof=1), half
 
 
 err_mc = mc_2d_errors()
 err_qmc = qmc_2d_errors()
 
-# slope fit on the power-law window (before the float64 coordinate floor)
+
 def slope_over(ns, errs, lo, hi):
     m = (ns >= lo) & (ns <= hi)
     return np.polyfit(np.log2(ns[m]), np.log2(errs[m]), 1)[0]
 
 
 slope_mc = slope_over(NS, err_mc, 2 ** 8, 2 ** 18)
-slope_qmc = slope_over(NS, err_qmc, 2 ** 6, 2 ** 11)
+slope_qmc = slope_over(NS, err_qmc, 2 ** 6, 2 ** 17)
+rqmc_mean, rqmc_std, rqmc_half = rqmc_stats()
 print(f"I_2d = {I_2D:.10f}")
-print(f"MC:  ошибка при N=2^18 = {err_mc[-1]:.3e}, наклон {slope_mc:.2f}")
-print(f"QMC: ошибка при N=2^18 = {err_qmc[-1]:.3e}, "
-      f"наклон {slope_qmc:.2f} (окно 2^6..2^11)")
-print(f"отношение ошибок MC/QMC при N=2^18 = {err_mc[-1] / err_qmc[-1]:.3e}")
+print(f"MC:   ошибка при N=2^18 = {err_mc[-1]:.3e}, наклон {slope_mc:.2f}")
+print(f"ЛПtau: ошибка при N=2^18 = {err_qmc[-1]:.3e}, наклон {slope_qmc:.2f}")
+print(f"отношение ошибок MC/ЛПtau при N=2^18 = {err_mc[-1] / err_qmc[-1]:.3e}")
+print(f"рандомизированный вариант (64 скремблировки): средняя ошибка "
+      f"{rqmc_mean:.3e}, СКО {rqmc_std:.3e} (тяжелые хвосты: СКО/среднее "
+      f"{rqmc_std / rqmc_mean:.1f}), полуширина 95%-го интервала "
+      f"{rqmc_half:.3e}")
 check_golden("qmc_err_N2_18", err_qmc[-1])
 check_golden("mc_err_N2_18", err_mc[-1])
+check_golden("slope_qmc_unscrambled", slope_qmc)
 
 fig, ax = plt.subplots(figsize=(6, 3.6), layout="constrained")
 ax.plot(NS, err_mc, "o-", markersize=4, linewidth=0.9, label="псевдослучайный МК")
 ax.plot(NS, err_qmc, "s-", markersize=4, linewidth=0.9,
-        label=r"квазислучайный, ЛП$\tau$")
+        label=r"ЛП$\tau$, детерминированная")
 ns = np.array([1e2, 3e5])
 ax.plot(ns, 2e-1 * (ns / ns[0]) ** (-0.5), "k--", linewidth=1,
         label=r"наклон $-1/2$")
@@ -576,17 +709,15 @@ fig.savefig(f"{FIGDIR}/fig-04.pdf", **SAVE_KW)
 
 # %% [markdown]
 # **Вывод:** предсказание подтвердилось. Наклон псевдослучайного метода близок
-# к $-1/2$, квазислучайный заметно круче — измеренный наклон напечатан выше
-# (окно $2^6..2^{11}$, до численного пола; теоретическая граница
-# $O(N^{-1}\ln^2 N)$ для класса гладких функций, отдельная аналитическая
-# функция может сходиться быстрее гарантии). При $N = 2^{18}$ отношение
-# ошибок напечатано выше: ошибка ЛП$\tau$ достигла уровня машинного нуля
-# ($3\cdot10^{-11}$), псевдослучайный метод — $6{,}7\cdot10^{-4}$. Два численных
-# предостережения, ставших видны при настройке примера: (1) датчик `Sobol`
-# в scipy по умолчанию квантует координаты по 30 битам и рисует фальшивое
-# плато ошибки $\sim 10^{-9}$ — здесь использован `bits=64`; (2) усреднение
-# по независимым скремблировкам обязательно: ошибка одной скремблированной
-# сети как случайная величина сама скачет на порядки между реализациями.
-# Оговорки конспекта в силе: гарантия опирается на детерминированную оценку
-# через отклонение (доверительный интервал не строится), а гладкость
-# постановка обеспечивает сама.
+# к $-1/2$; детерминированная ЛП$\tau$-кривая идёт с наклоном около $-1$
+# (измеренное значение напечатано выше) — ровно то, что обещает граница
+# $O(N^{-1}\ln^2 N)$ для этого гладкого интеграла. При $N = 2^{18}$ ошибка
+# ЛП$\tau$ — несколько $10^{-6}$ против $6{,}7\cdot10^{-4}$ у
+# псевдослучайного метода (отношение напечатано выше). Рандомизированный
+# вариант (64 скремблировки): средняя ошибка порядка $10^{-9}$ с тяжёлыми
+# хвостами (СКО/среднее $\approx 8$, напечатано выше) и со статистической
+# полушириной интервала — то есть скремблирование возвращает доверительный
+# интервал, сохраняя выигрыш в порядке. Численная оговорка: датчик `Sobol`
+# в scipy по умолчанию квантует координаты 30 битами и рисует фальшивое
+# плато ошибки $\sim 2^{-30}$ — здесь использован `bits=64`; без него
+# измерить наклон невозможно.
