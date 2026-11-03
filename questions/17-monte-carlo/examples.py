@@ -320,9 +320,11 @@ for d in [3, 10]:
 # График: относительная ошибка против числа вычислений подынтегральной
 # функции, обе оси логарифмические. Пунктир — эталонные наклоны $-1/2$
 # (метод Монте-Карло) и $-1/n$ (сеточная квадратура с разрывным подынтегральным
-# выражением). Кресты на уровне $10^0$ для МК при $n = 12$ — объёмы, где в
-# среднем меньше одного попадания на реплику (ошибка $100\%$ у нулевых
-# реплик); наклон там не определён.
+# выражением). Для МК при $n = 12$ при малых $N$ средняя ошибка больше единицы
+# (большинство реплик не даёт ни одного попадания и завышает объём нулём —
+# лишь единичные попадания завышают его ещё сильнее); наклон там не определён
+# и измеряется по хвосту $N \gtrsim 2^{14}$, где попаданий в среднем больше
+# одного (ряд попаданий напечатан выше).
 
 # %%
 fig, ax = plt.subplots(figsize=(6.4, 4.0), layout="constrained")
@@ -351,11 +353,6 @@ ax.plot(ns, 3e-1 * (ns / ns[0]) ** (-0.5), "k--", linewidth=1,
         label=r"наклон $-1/2$")
 ax.plot(ns, 1e-2 * (ns / ns[0]) ** (-1 / 12), "k:", linewidth=1,
         label=r"наклон $-1/12$")
-# zero-hit region for n=12 (mean hits < 1 per replicate): x-marks
-z = [p for p, h in zip(2.0 ** POWERS, mc_hits[12]) if h < 1.0]
-if z:
-    ax.plot(z, [1.0] * len(z), "x", color="tab:red", markersize=7,
-            label="МК $n=12$: нет попаданий")
 ax.set_xscale("log")
 ax.set_yscale("log")
 ax.set_xlabel(r"число вычислений функции $N$")
@@ -367,8 +364,8 @@ fig.savefig(f"{FIGDIR}/fig-02.pdf", **SAVE_KW)
 # **Вывод.** Наклоны напечатаны выше. Средняя по 16 репликам кривая метода
 # Монте-Карло идёт с наклоном, близким к $-1/2$ (измерено $-0{,}43\ldots-0{,}45$
 # при $n = 2, 8$), при $n = 12$ до $N \approx 2^{11}$ в среднем меньше одного
-# попадания на реплику (кресты на уровне $100\%$ — наклон там не
-# определён), а по хвосту $N \gtrsim 2^{14}$ кривая встаёт в общий наклон:
+# попадания на реплику (средняя ошибка больше единицы — наклон не определён),
+# а по хвосту $N \gtrsim 2^{14}$ кривая встаёт в общий наклон:
 # независимость порядка от размерности подтверждена на измеримой части.
 # Точки сетки скачут, и наклон квадратуры устойчиво не измеряется; устойчивый
 # измеренный контраст — другой: при $n = 8$ и $n = 12$ квадратура держит
@@ -601,9 +598,10 @@ fig.savefig(f"{FIGDIR}/fig-03.pdf", **SAVE_KW)
 # $I = \int_{[0,1]^2} e^{x_1 + x_2}\,dx = (e - 1)^2 \approx 2{,}95249$
 # (та же подынтегральная функция, что в примере 3, теперь двумерная).
 # Сравниваем: псевдослучайный метод Монте-Карло и **детерминированную**
-# ЛП$\tau$-последовательность (`scipy.stats.qmc.Sobol` без скремблирования,
-# `bits=64`: точки scipy по умолчанию квантуются 30 битами и рисуют
-# фальшивое плато ошибки $\sim 2^{-30}$).
+# ЛП$\tau$-последовательность (`scipy.stats.qmc.Sobol` без скремблирования).
+# Квантование координат у датчика scipy (по умолчанию 30 бит) детерминированную
+# последовательность не портит — проверяется сравнением с `bits=64` ниже; плато
+# $\sim 2^{-30}$ оно рисует только скремблированному варианту.
 #
 # **Предсказание (до прогона).** (1) Ошибка псевдослучайного метода (в среднем
 # по репликам) идёт с наклоном $\approx -1/2$. (2) Для детерминированной
@@ -613,8 +611,9 @@ fig.savefig(f"{FIGDIR}/fig-03.pdf", **SAVE_KW)
 # ожидается порядка нескольких $10^{-6}$ — на два с лишним порядка меньше
 # псевдослучайной. Доверительный интервал детерминированная схема не даёт
 # (только оценку через отклонение); **рандомизированный** вариант
-# (скремблирование с осреднением по повторам) интервал возвращает — его
-# характеристики напечатаны ниже отдельно.
+# (скремблирование с повторами) возвращает статистический интервал для $I$
+# — среднее 64 оценок $\pm 1{,}96\,s/\sqrt{64}$, без использования истинного
+# $I$; его характеристики напечатаны ниже отдельно.
 
 # %%
 D = 2
@@ -640,8 +639,8 @@ def mc_2d_errors(n_replicates=16):
 
 def qmc_2d_errors():
     """Deterministic LP-tau sequence (no scrambling), prefix means.
-    bits=64: the scipy default (bits=30) quantizes coordinates to a
-    2^{-30} grid and fakes an error plateau at ~1e-9."""
+    The coordinate quantization (scipy bits=30 default) does not affect
+    the unscrambled sequence: verified below, the same 3.814e-06 error."""
     from scipy.stats import qmc
 
     engine = qmc.Sobol(d=D, scramble=False, bits=64)
@@ -652,19 +651,21 @@ def qmc_2d_errors():
 
 
 def rqmc_stats(n_replicates=64):
-    """Randomized QMC: independent scramblings; mean error, RMSE and a
-    95% interval half-width from the replicates."""
+    """Randomized QMC: independent scramblings. Returns the replicate
+    estimates (their mean +- 1.96 s/sqrt(n) is a 95% CI for I that does
+    NOT use the known I) and the mean absolute relative error (a reference
+    value that does)."""
     from scipy.stats import qmc
 
-    errs = np.zeros(n_replicates)
+    ests = np.zeros(n_replicates)
     for rep in range(n_replicates):
         engine = qmc.Sobol(d=D, scramble=True, bits=64,
                            seed=np.random.default_rng([SEED, 8, rep]))
         pts = engine.random(NS[-1])
-        est = np.exp(pts.sum(axis=1)).mean()
-        errs[rep] = abs(est - I_2D) / I_2D
-    half = 1.96 * errs.std(ddof=1) / np.sqrt(n_replicates)
-    return errs.mean(), errs.std(ddof=1), half
+        ests[rep] = np.exp(pts.sum(axis=1)).mean()
+    half = 1.96 * ests.std(ddof=1) / np.sqrt(n_replicates)
+    rel_err = np.abs(ests - I_2D) / I_2D
+    return ests.mean(), half, rel_err.mean(), rel_err.std(ddof=1)
 
 
 err_mc = mc_2d_errors()
@@ -678,18 +679,27 @@ def slope_over(ns, errs, lo, hi):
 
 slope_mc = slope_over(NS, err_mc, 2 ** 8, 2 ** 18)
 slope_qmc = slope_over(NS, err_qmc, 2 ** 6, 2 ** 17)
-rqmc_mean, rqmc_std, rqmc_half = rqmc_stats()
+rqmc_mean, rqmc_half, rqmc_err, rqmc_err_std = rqmc_stats()
 print(f"I_2d = {I_2D:.10f}")
 print(f"MC:   ошибка при N=2^18 = {err_mc[-1]:.3e}, наклон {slope_mc:.2f}")
 print(f"ЛПtau: ошибка при N=2^18 = {err_qmc[-1]:.3e}, наклон {slope_qmc:.2f}")
 print(f"отношение ошибок MC/ЛПtau при N=2^18 = {err_mc[-1] / err_qmc[-1]:.3e}")
-print(f"рандомизированный вариант (64 скремблировки): средняя ошибка "
-      f"{rqmc_mean:.3e}, СКО {rqmc_std:.3e} (тяжелые хвосты: СКО/среднее "
-      f"{rqmc_std / rqmc_mean:.1f}), полуширина 95%-го интервала "
-      f"{rqmc_half:.3e}")
+print(f"рандомизированный вариант (64 скремблировки): оценка "
+      f"{rqmc_mean:.9f} +- {rqmc_half:.3e} (95%, по 64 повторам), "
+      f"средняя |ошибка| {rqmc_err:.3e} (СКО {rqmc_err_std:.3e}, "
+      f"тяжёлые хвосты: СКО/среднее {rqmc_err_std / rqmc_err:.1f})")
 check_golden("qmc_err_N2_18", err_qmc[-1])
 check_golden("mc_err_N2_18", err_mc[-1])
 check_golden("slope_qmc_unscrambled", slope_qmc)
+
+# coordinate quantization check: bits=30 must give the same deterministic
+# error for the unscrambled sequence
+from scipy.stats import qmc as _qmc
+_eng30 = _qmc.Sobol(d=D, scramble=False, bits=30)
+_pts30 = _eng30.random(NS[-1])
+_err30 = abs(np.exp(_pts30.sum(axis=1)).mean() - I_2D) / I_2D
+print(f"проверка bits=30 (детерминированная схема): ошибка {_err30:.3e}")
+assert abs(_err30 - err_qmc[-1]) < 1e-12, "bits=30 изменил ошибку ЛПtau"
 
 fig, ax = plt.subplots(figsize=(6, 3.6), layout="constrained")
 ax.plot(NS, err_mc, "o-", markersize=4, linewidth=0.9, label="псевдослучайный МК")
@@ -714,10 +724,11 @@ fig.savefig(f"{FIGDIR}/fig-04.pdf", **SAVE_KW)
 # $O(N^{-1}\ln^2 N)$ для этого гладкого интеграла. При $N = 2^{18}$ ошибка
 # ЛП$\tau$ — несколько $10^{-6}$ против $6{,}7\cdot10^{-4}$ у
 # псевдослучайного метода (отношение напечатано выше). Рандомизированный
-# вариант (64 скремблировки): средняя ошибка порядка $10^{-9}$ с тяжёлыми
-# хвостами (СКО/среднее $\approx 8$, напечатано выше) и со статистической
-# полушириной интервала — то есть скремблирование возвращает доверительный
-# интервал, сохраняя выигрыш в порядке. Численная оговорка: датчик `Sobol`
-# в scipy по умолчанию квантует координаты 30 битами и рисует фальшивое
-# плато ошибки $\sim 2^{-30}$ — здесь использован `bits=64`; без него
-# измерить наклон невозможно.
+# вариант (64 скремблировки): оценка $I$ со статистическим 95%-м
+# интервалом (среднее $\pm 1{,}96\,s/\sqrt{64}$, истинное $I$ при построении
+# интервала не используется) и средняя абсолютная ошибка порядка $10^{-9}$ с
+# тяжёлыми хвостами (СКО/среднее $\approx 8$) — скремблирование возвращает
+# доверительный интервал. Численная оговорка: плато ошибки $\sim 2^{-30}$ —
+# артефакт квантования координат датчика scipy (по умолчанию 30 бит), и
+# возникает он только у скремблированного варианта: у детерминированной
+# последовательности ошибка при `bits=30` та же (проверено ниже).
