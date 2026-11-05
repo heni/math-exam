@@ -9,7 +9,7 @@
 # сигнала (синусоидальный, прямоугольный и пилообразный) с единичной
 # дисперсией (посылка модели ICA, определение в theory.md) записываются
 # тремя датчиками полных смесей с фиксированной матрицей смешения $B$
-# (сингулярные числа $2{,}2, 1{,}6, 1{,}1$). Для PCA (пример 1) каждая смесь
+# (сингулярные числа $2{,}2, 1{,}6, 1{,}3$). Для PCA (пример 1) каждая смесь
 # пишется тремя локальными датчиками с шумом (девять каналов) плюс один
 # фоновый; для ICA (примеры 2–3) — те же три смеси без повторов; далее
 # гауссовский контрпример (пример 3) и меры негауссовости (пример 4).
@@ -31,15 +31,16 @@ SAVE_KW = {"metadata": {"CreationDate": None}}
 # means nothing. A mismatch fails the notebook build, so it works as a gate.
 GOLDEN = {
     # пример 1 (PCA, p=10: 9 локальных датчиков + 1 фоновый, смеси троекратны)
-    "recon_err_q3": 1052.91821747,
-    "rho_first3": 0.894708178253,
+    "recon_err_q3": 1052.36705946,
+    "rho_first3": 0.894763294054,
     "n_above_perm": 3,
+    "corr_pc_worst": 0.84248655295,
     # пример 2 (FastICA против эталона sklearn)
     "corr_own_min": 0.99999764028,
     "corr_sklearn_min": 0.999999234516,
     "iters_own_total": 9,
     # пример 3 (гауссовский контрпример)
-    "angle_gauss_deg": 15.5171334609,
+    "angle_gauss_deg": 15.5149160707,
     # пример 4 (меры негауссовости)
     "kurt_laplace": 2.97548679519,
     "kurt_unif": -1.19728574426,
@@ -67,9 +68,10 @@ def check_golden(name, value, tol=TOL):
 # (определение в theory.md) требует $\Var S_j = 1$, без этого соглашения
 # разделение определено лишь с точностью до масштаба. Три датчика регистрируют
 # полные смеси $x_i = \sum_j b_{ij} s_j$ с матрицей смешения $B$
-# (ортогональные сомножители из того же seed, сингулярные числа
-# $2{,}2, 1{,}6, 1{,}1$ — сильные и различные, чтобы главные направления были
-# определены однозначно). Каждая смесь к тому же пишется тремя локальными
+# (случайный ортогональный сомножитель $U$ из того же seed, правый
+# сомножитель $V$ — два поворота на $45^{\circ}$, далёкие от перестановок;
+# сингулярные числа $2{,}2, 1{,}6, 1{,}3$ — сильные и различные, чтобы главные
+# направления были определены однозначно). Каждая смесь к тому же пишется тремя локальными
 # датчиками с шумом $0{,}1$ (каналы 1–9: три тройки копий, сильно
 # коррелированные внутри себя); датчик 10 — фоновый шум без сигнала. Данные
 # центрируются (см. замечание к теореме о главных компонентах в theory.md), а
@@ -91,8 +93,11 @@ S = S_raw / S_raw.std(axis=0, ddof=0)  # unit-variance sources (model assumption
 
 rng_mix = np.random.default_rng([SEED, 9])
 U_mix, _ = np.linalg.qr(rng_mix.normal(0.0, 1.0, (3, 3)))
-V_mix, _ = np.linalg.qr(rng_mix.normal(0.0, 1.0, (3, 3)))
-B_true = U_mix @ np.diag([2.2, 1.6, 1.1]) @ V_mix.T  # controlled spectrum
+c45, s45 = np.sqrt(0.5), np.sqrt(0.5)
+G12 = np.array([[c45, -s45, 0.0], [s45, c45, 0.0], [0.0, 0.0, 1.0]])
+G23 = np.array([[1.0, 0.0, 0.0], [0.0, c45, -s45], [0.0, s45, c45]])
+V_mix = G12 @ G23  # fixed 45-deg rotations, far from any permutation
+B_true = U_mix @ np.diag([2.2, 1.6, 1.3]) @ V_mix.T  # controlled spectrum
 
 X3c = S @ B_true.T  # clean 3-channel mixtures, used in examples 2-3
 X3n = X3c / X3c.std(axis=0, ddof=0)  # column-standardized mixtures
@@ -129,10 +134,10 @@ print(f"source kurtoses = {np.array([(v**4).mean() / (v**2).mean()**2 - 3.0 for 
 # Эккарта — Янга — про любую матрицу, в том числе шумную), долю дисперсии
 # первых трёх компонент около $0{,}9$ и ровно три компоненты выше
 # эталона.
-# Главные направления не совпадают с профилями смесей (столбцы $B$,
-# размноженные по тройкам копий) —
-# честная геометрия: PCA находит сигнальное подпространство смесей, не
-# разделяя источников.
+# Ключевая метрика — $\max_k |\corr(PC_j, s_k)|$: если она близка к
+# единице, компонента и есть источник (PCA разделил); ожидаем заметно меньше
+# единицы — $V$ заведомо далека от перестановок (два поворота на $45^{\circ}$),
+# поэтому каждая главная компонента — честная смесь всех трёх источников.
 
 # %%
 U_x, d_x, Vt_x = np.linalg.svd(Z10, full_matrices=False)
@@ -177,16 +182,14 @@ print(f"sigma(perm) = {np.array2string(d_perm, precision=1)}")
 print(f"components above permutation baseline: {n_above}")
 check_golden("n_above_perm", float(n_above))
 
-# angles of principal directions to source directions: sources sit in the
-# coordinate subspaces of their sensor triples
-V_pc = Vt_x[:3].T  # 10 x 3
-src_dirs = np.zeros((10, 3))
-for k in range(3):
-    src_dirs[3 * k:3 * k + 3, k] = 1.0 / np.sqrt(3.0)
-cos_angles = np.clip(np.abs(V_pc.T @ src_dirs), 0, 1)
-angles_deg = np.degrees(np.arccos(cos_angles))
-print("angles PCA vs source directions (deg):")
-print(np.array2string(angles_deg, precision=1))
+# direct separation metric: max |corr| of each principal component with the
+# sources -- close to 1 means the component IS a source (PCA separated);
+# clearly below 1 means a mixture (PCA did not separate)
+PC_scores = Z10 @ Vt_x[:3].T  # N x 3
+C_pc = np.abs(np.corrcoef(np.hstack([PC_scores, Sc]).T))[:3, 3:]
+print("max |corr(PC_j, s_k)| per component:")
+print(np.array2string(C_pc.max(axis=1), precision=4))
+check_golden("corr_pc_worst", float(C_pc.max(axis=1).max()))
 
 fig, axes = plt.subplots(1, 3, figsize=(11, 3.2))
 
