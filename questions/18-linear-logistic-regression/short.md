@@ -66,10 +66,6 @@ $\nabla Q=A^{\T}(p-y)$, $\nabla^2Q=A^{\T}WA\succeq0$,
 $W=\diag(p_i(1-p_i))$; при $\rank A=n$ и $0<p_i<1$ строго выпукла; минимум
 существует $\Leftrightarrow$ условие перекрытия (для любого $z$ с $Az\ne0$
 есть $i$ с $a_i^{\T}z>0$, $y_i=0$, или $a_i^{\T}z<0$, $y_i=1$).
-- **Т5 (чувствительность МНК).** $\frac{\norm{\hat\theta-\theta_{LS}}}{\norm{\theta_{LS}}}\le
-\delta\bigl\{\frac{2\kappa_2(A)}{\cos\varphi}+\tan\varphi\,\kappa_2(A)^2\bigr\}+O(\delta^2)$;
-$\frac{\norm{\hat r-r}}{\norm{y}}\le\delta(1+2\kappa_2(A))\min(1,m-n)+O(\delta^2)$.
-
 ## Методы и алгоритмы
 
 - **Решение задачи МНК.** Нормальные уравнения $A^{\T}A\hat\theta=A^{\T}y$:
