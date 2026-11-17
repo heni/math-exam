@@ -53,7 +53,8 @@ $(m-n)\hat\sigma^2/\sigma^2\sim\chi^2_{m-n}$; $\hat\theta$ и $\hat\sigma^2$
 относительная ошибка $\approx u\,\kappa_2(A)^2$. QR-разложение ($A=QR$,
 тонкое): $R\hat\theta=Q^{\T}y$, невязка $\norm{(I-QQ^{\T})y}^2$; обратная
 устойчивость ($\norm{\delta A}\lesssim mu\norm{A}$), ошибка
-$O(u(\kappa_2(A)+\tan\varphi\,\kappa_2(A)^2))$. Чувствительность:
+$O(u(\kappa_2(A)+\tan\varphi\,\kappa_2(A)^2))$ ($\varphi$ — угол
+между $y$ и $\range A$). Чувствительность:
 $\frac{\norm{\hat\theta-\theta_{LS}}}{\norm{\theta_{LS}}}\le
 \delta\bigl\{\frac{2\kappa_2(A)}{\cos\varphi}+\tan\varphi\,\kappa_2(A)^2\bigr\}+O(\delta^2)$.
 - **Т6 (гребень) [A].** При $\alpha>0$ решение единственно и линейно по $y$;
@@ -66,6 +67,7 @@ $\nabla Q=A^{\T}(p-y)$, $\nabla^2Q=A^{\T}WA\succeq0$,
 $W=\diag(p_i(1-p_i))$; при $\rank A=n$ и $0<p_i<1$ строго выпукла; минимум
 существует $\Leftrightarrow$ условие перекрытия (для любого $z$ с $Az\ne0$
 есть $i$ с $a_i^{\T}z>0$, $y_i=0$, или $a_i^{\T}z<0$, $y_i=1$).
+
 ## Методы и алгоритмы
 
 - **Решение задачи МНК.** Нормальные уравнения $A^{\T}A\hat\theta=A^{\T}y$
