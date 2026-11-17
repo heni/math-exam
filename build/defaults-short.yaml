@@ -1,0 +1,29 @@
+# Сборка краткого плана ответа: Markdown + TeX -> xelatex -> PDF.
+# short.pdf — шпаргалка на 1–2 страницы (кегль меньше конспектного,
+# поля уже); пути относительно корня, pandoc запускается ИЗ КОРНЯ.
+to: latex
+pdf-engine: xelatex
+number-sections: true
+toc: false
+include-in-header:
+  - build/preamble-theory.tex
+  - build/preamble-short.tex
+resource-path:
+  - .
+  - assets
+variables:
+  documentclass: scrartcl
+  classoption:
+    - parskip=half
+  mainfont: DejaVu Serif
+  sansfont: Lato
+  monofont: DejaVu Sans Mono
+  lang: ru
+  # KOMA-Script принимает произвольный кегль только ключом fontsize=..., голая
+  # опция «7.5pt» молча игнорируется (проверено: warning «Unused global option»).
+  fontsize: fontsize=7.5pt
+  geometry: margin=12mm
+  linestretch: 1.0
+  colorlinks: true
+  linkcolor: teal
+  urlcolor: teal

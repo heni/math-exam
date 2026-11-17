@@ -1,0 +1,8 @@
+% Дополнение к преамбуле конспекта для short.pdf: только плотная посадка.
+% Окружения и общие обозначения наследуются из build/preamble-theory.tex
+% (подключается первым в defaults-short.yaml) — не дублировать их здесь.
+\makeatletter
+\def\thm@space@setup{%
+  \thm@preskip=3pt plus 1pt minus 1pt
+  \thm@postskip=3pt plus 1pt minus 1pt}
+\makeatother
