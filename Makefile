@@ -82,6 +82,7 @@ question-shorts.pdf: $(SHORT_SRC) $(SHORT_YAML) build/preamble-theory.tex build/
 	@tmp=$$(mktemp /tmp/question-shorts-XXXX.md); \
 	bash tools/shorts.sh > "$$tmp"; \
 	$(PANDOC) "$$tmp" --defaults $(SHORT_YAML) --toc --toc-depth=1 \
+		--number-sections=false \
 		--metadata title="Экзаменационные билеты по специальности 1.2.2" \
 		--metadata subtitle="Краткие планы ответов" \
 		--metadata toc-title="Вопросы" \
