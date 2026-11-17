@@ -54,7 +54,7 @@ $\E\abs{\xi_1}<\infty$: $\overline X_N\xrightarrow{\Prob}a$ — без коне�
 $\Prob\{\max_{k\le N}\abs{S_k}\ge\varepsilon\}\le\Var S_N/\varepsilon^2$.
 - **Т7 (усиленный ЗБЧ, Колмогоров).** Независимые одинаково распределённые
 с $\E\abs{\xi_1}<\infty$: $\overline X_N\xrightarrow{\text{п.н.}}a$
-(усечение $+$ критерий Колмогорова $\sum_k\Var\zeta_k/k^2<\infty$
+(усечение $+$ лемма Колмогорова $\sum_k\Var\zeta_k/k^2<\infty$
 $\Rightarrow$ $(S_N-\E S_N)/N\to0$ п.н. $+$ лемма Бореля — Кантелли).
 - **Т8 (свойства характеристической функции).** $\abs{\varphi}\le1$;
 $\varphi_{c\xi+b}(t)=e^{itb}\varphi_\xi(ct)$; на независимых слагаемых
