@@ -4,7 +4,7 @@ title: "Вопрос 07. Преобразования Фурье, Лапласа
 
 **Основной результат.** Преобразование Фурье обратимо на $L_2$ (Планшерель) и
 переводит свёртку в произведение; преобразование Лапласа оригинала — аналитично
-при $\operatorname{Re}s>a_0$ и обратимо (Меллин), что решает задачу Коши;
+при $\operatorname{Re}s>a_0$ и обратимо по формуле Меллина, что решает задачу Коши;
 система Хаара — ортонормированный базис $L_2(\R)$ с быстрым преобразованием
 за $O(N)$.
 
@@ -57,13 +57,14 @@ $f(\lambda t)\dashv\frac1\lambda F(s/\lambda)$;
 $f^{(n)}\dashv s^nF(s)-\sum s^{n-1-k}f^{(k)}(+0)$; $t^nf\dashv(-1)^nF^{(n)}$;
 $\int_0^tf\dashv F(s)/s$; запаздывание $f(t-\tau)\dashv e^{-s\tau}F(s)$; сдвиг
 $e^{\lambda t}f\dashv F(s-\lambda)$; свёртка $(f*g)(t)=\int_0^tf(\tau)g(t-\tau)d\tau\dashv FG$.
-- **Т8 (Меллин).** $f(t)=\frac{1}{2\pi i}\int_{\sigma_1-i\infty}^{\sigma_1+i\infty}F(s)e^{st}\,ds$
+- **Т8 (Меллина).** $f(t)=\frac{1}{2\pi i}\int_{\sigma_1-i\infty}^{\sigma_1+i\infty}F(s)e^{st}\,ds$
 при $\sigma_1>a_0$ и $\int\abs{F(\sigma_1+i\omega)}d\omega<\infty$.
 - **Т9 (Хаар: ортонормированность и полнота).** $\scal{\psi_{j,k}}{\psi_{j',k'}}=\delta_{jj'}\delta_{kk'}$;
 $f\perp$ всем $\psi_{j,k}$ $\Rightarrow$ $f=0$ — ортонормированный базис $L_2(\R)$.
 - **Т10 (Хаар: Парсеваль и сходимость).** $f=\sum_{j,k}\scal{f}{\psi_{j,k}}\psi_{j,k}$
-в $L_2$, $\norm{f}_2^2=\sum\abs{\scal{f}{\psi_{j,k}}}^2$; частичная сумма
-уровня $S_Jf$ сходится равномерно: $\norm{S_Jf-f}_\infty\le\omega(f,2^{-J-1})$.
+в $L_2$, $\norm{f}_2^2=\sum\abs{\scal{f}{\psi_{j,k}}}^2$; для равномерно
+непрерывной $f$ частичная сумма уровня $S_Jf$ сходится равномерно:
+$\norm{S_Jf-f}_\infty\le\omega(f,2^{-J-1})\to0$.
 - **Т11 (ДПФ).** Обращение $x(j)=\frac1N\sum_kX(k)\varepsilon_N^{kj}$;
 Парсеваль $\scal{x}{y}=\frac1N\scal{X}{Y}$; $\mathcal F_N(x*y)=XY$.
 
