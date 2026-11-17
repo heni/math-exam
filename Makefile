@@ -17,6 +17,7 @@
 PANDOC   := pandoc
 THEORY_YAML := build/defaults-theory.yaml
 SLIDES_YAML := build/defaults-slides.yaml
+SHORT_YAML  := build/defaults-short.yaml
 
 # Питон берём из локального venv, если он есть, иначе системный: цели должны
 # работать и на чистой машине, где venv ещё не создан (там упадут с внятным
@@ -29,21 +30,24 @@ JUPYTEXT := $(if $(wildcard $(VENV_BIN)/jupytext),$(VENV_BIN)/jupytext,jupytext)
 
 THEORY_SRC := $(wildcard questions/*/theory.md)
 SLIDES_SRC := $(wildcard questions/*/slides.md)
+SHORT_SRC  := $(wildcard questions/*/short.md)
 NB_SRC     := $(wildcard questions/*/examples.py)
 
 THEORY_PDF := $(THEORY_SRC:.md=.pdf)
 SLIDES_PDF := $(SLIDES_SRC:.md=.pdf)
+SHORT_PDF  := $(SHORT_SRC:.md=.pdf)
 NB_OUT     := $(NB_SRC:.py=.ipynb)
 
-.PHONY: all theory slides notebooks check clean cleanall new list help venv freeze
+.PHONY: all theory slides short notebooks check clean cleanall new list help venv freeze
 
 # Ноутбуки первыми: они строят картинки, которые вставляют конспект и слайды.
 # При обратном порядке PDF собирается раньше своей картинки и показывает
 # прошлую версию графика, выглядя при этом свежим (ловится tools/check.sh, п. 3).
-all: notebooks theory slides
+all: notebooks theory slides short question-shorts.pdf
 
 theory:    $(THEORY_PDF)
 slides:    $(SLIDES_PDF)
+short:     $(SHORT_PDF)
 notebooks: $(NB_OUT)
 
 # Картинки вставляет PDF, а строит их ноутбук, поэтому ноутбук — настоящая
@@ -66,6 +70,25 @@ questions/%/slides.pdf: questions/%/slides.md $(SLIDES_YAML) build/preamble-slid
 	@$(PANDOC) $< --defaults $(SLIDES_YAML) \
 		--resource-path=.:assets:questions/$* -o $@
 
+questions/%/short.pdf: questions/%/short.md $(SHORT_YAML) build/preamble-theory.tex build/preamble-short.tex
+	@echo "==> short: $*"
+	@$(PANDOC) $< --defaults $(SHORT_YAML) \
+		--resource-path=.:assets:questions/$* -o $@
+
+# Единый PDF со всеми краткими планами: склейка short.md вопросов в том
+# порядке, в котором они идут в программе (каталоги zero-padded).
+question-shorts.pdf: $(SHORT_SRC) $(SHORT_YAML) build/preamble-theory.tex build/preamble-short.tex build/preamble-shortscover.tex tools/shorts.sh
+	@echo "==> question-shorts"
+	@tmp=$$(mktemp /tmp/question-shorts-XXXX.md); \
+	bash tools/shorts.sh > "$$tmp"; \
+	$(PANDOC) "$$tmp" --defaults $(SHORT_YAML) --toc --toc-depth=1 \
+		--metadata title="Экзаменационные билеты по специальности 1.2.2" \
+		--metadata subtitle="Краткие планы ответов" \
+		--metadata toc-title="Вопросы" \
+		--include-in-header=build/preamble-shortscover.tex \
+		-o $@; \
+	rm -f "$$tmp"
+
 # Ноутбук — производный артефакт: источник в git — examples.py (jupytext percent).
 # Исполняется при сборке, чтобы в .ipynb лежали настоящие выводы, а не пустые
 # ячейки; при падении ячейки сборка падает — это гейт, а не помеха.
@@ -79,7 +102,7 @@ q%:
 	if [ -z "$$dir" ]; then echo "нет каталога для вопроса $*"; exit 1; fi; \
 	dir=$${dir%/}; \
 	[ -f "$$dir/examples.py" ] && $(MAKE) --no-print-directory "$$dir/examples.ipynb"; \
-	for t in theory slides; do \
+	for t in theory slides short; do \
 	  [ -f "$$dir/$$t.md" ] && $(MAKE) --no-print-directory "$$dir/$$t.pdf"; \
 	done; \
 	true
@@ -114,7 +137,7 @@ clean:
 # Полная очистка — редкая операция (пересборка всего с нуля):
 # артефакты закоммичены как доставляемые, их удаление затрагивает все вопросы.
 cleanall:
-	@rm -f questions/*/theory.pdf questions/*/slides.pdf questions/*/examples.ipynb
+	@rm -f questions/*/theory.pdf questions/*/slides.pdf questions/*/short.pdf questions/*/examples.ipynb question-shorts.pdf
 	@echo "собранные артефакты удалены"
 
 help:

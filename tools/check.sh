@@ -40,11 +40,17 @@ done
 [ "$missing_img" -eq 0 ] && note "чисто"
 
 echo "== 3. PDF старше своего источника =="
-for src in questions/*/theory.md questions/*/slides.md; do
+for src in questions/*/theory.md questions/*/slides.md questions/*/short.md; do
   [ -e "$src" ] || continue
   pdf="${src%.md}.pdf"
   if [ -e "$pdf" ] && [ "$src" -nt "$pdf" ]; then bad "$pdf старше $src — нужен make"; fi
 done
+# Единый сборник question-shorts.pdf склеивается из всех short.md: свежесть
+# сверяется с самым новым из них (инструмент читает short.md, а не PDF).
+latest_short=$(ls -t questions/*/short.md 2>/dev/null | head -1)
+if [ -n "$latest_short" ] && [ -e question-shorts.pdf ] && [ "$latest_short" -nt question-shorts.pdf ]; then
+  bad "question-shorts.pdf старше $latest_short — нужен make"
+fi
 for src in questions/*/examples.py; do
   [ -e "$src" ] || continue
   nb="${src%.py}.ipynb"
@@ -440,7 +446,7 @@ case "$branch" in
                 git status --porcelain | awk '{print $2}'
               } | sort -u | while read -r f; do
                 case "$f" in
-                  questions/*/theory.pdf|questions/*/slides.pdf|questions/*/examples.ipynb|questions/*/figures/*.pdf)
+                  questions/*/theory.pdf|questions/*/slides.pdf|questions/*/short.pdf|questions/*/examples.ipynb|questions/*/figures/*.pdf)
                     case "$f" in
                       "$qdir"/*) : ;;
                       *) echo "  [!] $f — артефакт не каталога $qdir в ветке $branch" ;;
@@ -456,6 +462,23 @@ case "$branch" in
     note "ветка $branch без slug не похожа на ветвь вопроса — НЕ ПРОВЕРЕНО"
     ;;
 esac
+note "проверено"
+
+
+echo "== 15. Краткие планы ответа: объём short.pdf =="
+# short.pdf — шпаргалка: ориентир 1 страница, край — 2 (и то когда вторую
+# страницу занимает раздел «Методы и алгоритмы»). Больше двух страниц —
+# прореживать список. Проверка по pdfinfo; PDF без текстового слоя страниц
+# не отдаёт — такие пропускаем с пометкой, а не падаем молча.
+for pdf in questions/*/short.pdf; do
+  [ -e "$pdf" ] || continue
+  pages=$(pdfinfo "$pdf" 2>/dev/null | awk '/^Pages:/{print $2}')
+  if [ -z "$pages" ]; then
+    note "$pdf: pdfinfo не ответил — НЕ ПРОВЕРЕНО"
+  elif [ "$pages" -gt 2 ]; then
+    bad "$pdf: $pages страниц — лимит 2 страницы на краткий план ответа"
+  fi
+done
 note "проверено"
 
 

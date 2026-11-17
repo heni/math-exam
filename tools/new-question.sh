@@ -13,7 +13,7 @@ title=$(cut -f3 <<<"$row")
 dir="questions/$slug"
 mkdir -p "$dir/figures"
 
-for f in theory slides; do
+for f in theory slides short; do
   if [ -e "$dir/$f.md" ]; then
     echo "  пропуск: $dir/$f.md уже есть"
   else
