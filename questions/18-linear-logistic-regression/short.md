@@ -49,14 +49,14 @@ $\varepsilon\sim\mathcal N(0,\sigma^2I)$: ОМП $\theta$ совпадает с 
 $\hat\theta\sim\mathcal N(\theta,\sigma^2(A^{\T}A)^{-1})$;
 $(m-n)\hat\sigma^2/\sigma^2\sim\chi^2_{m-n}$; $\hat\theta$ и $\hat\sigma^2$
 независимы; ОМП дисперсии смещена: $\E\hat\sigma^2_{\mathrm{ML}}=\frac{m-n}{m}\sigma^2$.
-- **Т5 (численная сторона).** Нормальные уравнения в машинной арифметике:
+- **Т5 (численная сторона) [A].** Нормальные уравнения в машинной арифметике:
 относительная ошибка $\approx u\,\kappa_2(A)^2$. QR-разложение ($A=QR$,
 тонкое): $R\hat\theta=Q^{\T}y$, невязка $\norm{(I-QQ^{\T})y}^2$; обратная
 устойчивость ($\norm{\delta A}\lesssim mu\norm{A}$), ошибка
 $O(u(\kappa_2(A)+\tan\varphi\,\kappa_2(A)^2))$. Чувствительность:
 $\frac{\norm{\hat\theta-\theta_{LS}}}{\norm{\theta_{LS}}}\le
 \delta\bigl\{\frac{2\kappa_2(A)}{\cos\varphi}+\tan\varphi\,\kappa_2(A)^2\bigr\}+O(\delta^2)$.
-- **Т6 (гребень).** При $\alpha>0$ решение единственно и линейно по $y$;
+- **Т6 (гребень) [A].** При $\alpha>0$ решение единственно и линейно по $y$;
 $\hat\theta_\alpha=\sum_j\frac{d_j}{d_j^2+\alpha}(u_j^{\T}y)v_j$,
 $A\hat\theta_\alpha=\sum_j\frac{d_j^2}{d_j^2+\alpha}(u_j^{\T}y)u_j$ — фильтр
 сжимает малые $d_j$; $\mathrm{df}(\alpha)$ непрерывно убывает от $r$ до $0$
@@ -81,3 +81,7 @@ $\theta^{+}=\theta+(A^{\T}WA)^{-1}A^{\T}(y-p)$ совпадает с решен�
 взвешенной МНК с весами $W=\diag(p_i(1-p_i))$ и рабочим откликом
 $z=A\theta+W^{-1}(y-p)$: $\theta^{+}=\arg\min_\vartheta(z-A\vartheta)^{\T}W(z-A\vartheta)$;
 вес максимален у объектов у границы ($p_i\approx1/2$).
+- **R², t- и F-критерии, softmax [A].** $R^2=1-\mathrm{RSS}/\mathrm{TSS}$
+— доля объяснённой дисперсии; значимость модели — $F_{n-1,m-n}$, отдельных
+коэффициентов — t-критерии; мультикласс ($K$ классов, $K-1$ логитов) —
+softmax: $\Prob(G=k\mid a)\propto e^{a^{\T}\theta_k}$.

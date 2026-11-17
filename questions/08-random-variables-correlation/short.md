@@ -60,7 +60,7 @@ $\scal{u}{\xi-a}=0$ почти наверное; $\rank\Gamma=k$ $\Rightarrow$ $
 - **Т9 (главные оси).** $\Gamma=Q\Lambda Q\T$, $\lambda_1\ge\dots\ge\lambda_n$:
 $Q\T(\xi-a)$ некоррелирован, $\Var\zeta_k=\lambda_k$;
 $\max_{\norm u=1}\Var\scal u\xi=\lambda_1$ на $q_1$, $\min=\lambda_n$ на $q_n$.
-- **Т10 (многомерное Чебышёво).** $\Prob\{(\xi-a)\T\Gamma^{-1}(\xi-a)\ge c\}\le n/c$.
+- **Т10 (многомерное Чебышёво) [R].** $\Prob\{(\xi-a)\T\Gamma^{-1}(\xi-a)\ge c\}\le n/c$.
 - **Т11 (наилучший линейный прогноз).** $\min_{b,c}\E(\eta-b\xi-c)^2=\Var\eta(1-r^2)$;
 $b^{*}=\cov(\xi,\eta)/\Var\xi$.
 - **Т12 (наилучшая линейная оценка).** При невырожденной $\Gamma_\eta$ минимум
@@ -76,7 +76,7 @@ $\Gamma_{\xi\eta}=0$ $\Rightarrow$ независимость; при невыр
 $\E\xi+\Gamma_{\xi\eta}\Gamma_\eta^{-1}(y-\E\eta)$,
 $\Gamma_\xi-\Gamma_{\xi\eta}\Gamma_\eta^{-1}\Gamma_{\eta\xi}$ — $\E(\xi\mid\eta)$
 линейно.
-- **Т15 ($\nu^2$ против $r^2$).** $r^2\le\nu^2\le1$; $\nu^2=1$ $\Leftrightarrow$
+- **Т15 ($\nu^2$ против $r^2$) [R].** $r^2\le\nu^2\le1$; $\nu^2=1$ $\Leftrightarrow$
 $\eta$ — функция от $\xi$.
 
 ## Следствия
@@ -84,6 +84,10 @@ $\eta$ — функция от $\xi$.
 - $\abs{\cov}\le\sigma_\xi\sigma_\eta$, $\abs r\le1$; $\Var\sum\xi_k=\sum\Var\xi_k$
 для попарно некоррелированных; $r^2$ — доля снимаемой дисперсии.
 - Дополнение Шура ковариационной блочной матрицы $\succeq0$.
+- **Преобразование плотности [A]:** для гладкого обратимого $\varphi$
+плотность $\eta=\varphi(\xi)$ равна
+$p_\eta(y)=p_\xi\bigl(\varphi^{-1}(y)\bigr)\,\bigl|\det J\varphi^{-1}(y)\bigr|$
+(замена переменных; так выводятся $\chi^2$ и Бокс — Мюллер).
 - **Закон полной дисперсии:** $\Var\xi=\E\Var(\xi\mid\mathcal G)+\Var\E(\xi\mid\mathcal G)$.
 - В гауссовском случае наилучший прогноз по всем $g$ совпадает с линейным,
 $\nu^2(\xi_k\mid\eta)=r_k^2$.

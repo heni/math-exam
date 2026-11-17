@@ -29,7 +29,7 @@ $\sqrt N(\widehat\theta_N-\theta)\xrightarrow{d}\mathcal N(0,\sigma^2(\theta))$.
 - **О сходимости распределений (Леви, наша форма).** Если
 $\E\zeta_N=0$, $\E\zeta_N^2=1$ и $\varphi_{\zeta_N}(t)\to e^{-t^2/2}$ при каждом
 $t$, то $F_{\zeta_N}\to\Phi$ поточечно.
-- **Гауссовское сглаживание.** $p_\delta(y)=\frac{1}{\delta\sqrt{2\pi}}e^{-y^2/(2\delta^2)}
+- **Гауссовское сглаживание [A]–[R].** $p_\delta(y)=\frac{1}{\delta\sqrt{2\pi}}e^{-y^2/(2\delta^2)}
 =\frac{1}{2\pi}\int e^{-\delta^2t^2/2}e^{-ity}\,dt$.
 
 ## Теоремы
@@ -75,13 +75,11 @@ $\Prob\{\abs{\overline X_N-a}\le z_{1-\alpha/2}\widehat\sigma_N/\sqrt N\}\to1-\a
 
 ## Методы и алгоритмы
 
-- **Метод Монте-Карло.** Для $u_k$ независимы и равномерны на $[0,1]$,
-$\int_0^1\abs{g}\,dx<\infty$: $I_N=\frac1N\sum_kg(u_k)\xrightarrow{\Prob}\int_0^1g\,dx$
-(ЗБЧ); при $0<\Var g(u_1)=\sigma_g^2<\infty$:
-$\Prob\{\abs{I_N-I}\le z_{1-\alpha/2}\sigma_g/\sqrt N\}\to1-\alpha$ (ЦПТ) —
-характерная точность $O(N^{-1/2})$, не зависящая от размерности.
+- **Метод Монте-Карло [A].** $u_k$ независимы, $U[0,1]$,
+$I=\int_0^1g\,dx$: $I_N=\frac1N\sum_kg(u_k)\xrightarrow{\Prob}I$ (ЗБЧ),
+контроль погрешности по ЦПТ — подробно в вопросе 17 (метод Монте-Карло).
 
-*Приложения (сжато):* **Теорема (Линдеберг).** Независимые центрированные $\xi_k$,
+*Приложения [A]–[R]:* **Теорема (Линдеберг).** Независимые центрированные $\xi_k$,
 $s_N^2=\Var S_N$: условие $\frac{1}{s_N^2}\sum_k\E[\xi_k^2\mathbb 1_{\{\abs{\xi_k}\ge\tau s_N\}}]\to0$
 влечёт $S_N/s_N\xrightarrow{d}\mathcal N(0,1)$; достаточное условие Ляпунова:
 $\frac{1}{s_N^{2+\delta}}\sum_k\E\abs{\xi_k}^{2+\delta}\to0$; для одинаково
