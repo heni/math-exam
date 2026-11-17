@@ -56,7 +56,7 @@ $(m-n)\hat\sigma^2/\sigma^2\sim\chi^2_{m-n}$; $\hat\theta$ и $\hat\sigma^2$
 $O(u(\kappa_2(A)+\tan\varphi\,\kappa_2(A)^2))$. Чувствительность:
 $\frac{\norm{\hat\theta-\theta_{LS}}}{\norm{\theta_{LS}}}\le
 \delta\bigl\{\frac{2\kappa_2(A)}{\cos\varphi}+\tan\varphi\,\kappa_2(A)^2\bigr\}+O(\delta^2)$.
-- **Т6 (гребень).** При $\alpha>0$ решение единственно и линейно по $y$;
+- **Т6 (гребень) [A].** При $\alpha>0$ решение единственно и линейно по $y$;
 $\hat\theta_\alpha=\sum_j\frac{d_j}{d_j^2+\alpha}(u_j^{\T}y)v_j$,
 $A\hat\theta_\alpha=\sum_j\frac{d_j^2}{d_j^2+\alpha}(u_j^{\T}y)u_j$ — фильтр
 сжимает малые $d_j$; $\mathrm{df}(\alpha)$ непрерывно убывает от $r$ до $0$
