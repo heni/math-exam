@@ -70,7 +70,7 @@ $\varepsilon\sim\mathcal N(0,\sigma^2I)$, $\theta\sim\mathcal N(0,\tau^2I)$:
 $\E(\theta\mid Y)=\bigl(A^{\T}A+\frac{\sigma^2}{\tau^2}I\bigr)^{-1}A^{\T}Y$ —
 минимизатор $\norm{A\theta-Y}^2+\frac{\sigma^2}{\tau^2}\norm{\theta}^2$
 (мост к вопросу об обратных задачах).
-- **Т6 (Рао — Блэкуэлл).** При достаточной $T$ и выпуклой по $a$ потере
+- **Т6 (Рао — Блэкуэлл) [A].** При достаточной $T$ и выпуклой по $a$ потере
 правило $\delta^{*}(t)=\E_\theta[\delta(X)\mid T=t]$ корректно и
 $R(\delta^{*},\theta)\le R(\delta,\theta)$ — улучшение через достаточную
 статистику.
