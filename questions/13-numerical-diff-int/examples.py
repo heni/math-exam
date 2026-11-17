@@ -44,6 +44,8 @@ GOLDEN = {
     "err_hermite_abs_n32": 0.0008034163099304159,
     "slope_hermite_abs": 2.0030476264465413,
     "sum_abs_weights_uniform_n16": 65.32480175569786,
+    "nc_min_weight_n8": -0.16014109347442682,
+    "nc_sumabs_n16": 58.45738091888323,
 }
 TOL = 1e-3
 
@@ -517,3 +519,68 @@ fig.savefig(f"{FIGDIR}/fig-03.pdf", **SAVE_KW)
 # модулей коэффициентов (уже при $n = 16$ есть отрицательные веса), и её
 # погрешность на $e^x$ перестаёт убывать — прямой аналог неустойчивости
 # формул Ньютона—Котеса из `theory.md`.
+
+# %% [markdown]
+# ## Пример 4. Знаки весов формул Ньютона — Котеса: где начинается неустойчивость
+#
+# Вопрос из `theory.md`: при каком числе интервалов $n$ у замкнутых формул
+# Ньютона — Котеса на $[0,1]$ появляются отрицательные коэффициенты? Веса
+# заменой $x = a + th$ приводятся к отрезку $[0,n]$ и вычисляются точно, в
+# рациональной арифметике:
+# $$ c_k = \frac{(-1)^{n-k}}{n\,k!\,(n-k)!} \int_0^n \prod_{j \ne k}(t-j)\,dt . $$
+#
+# Предсказание (по [09]): при $n \ge 10$ среди коэффициентов есть
+# отрицательные, а формулы малых $n$ устойчивы. Проверка — прямой расчёт
+# знаков весов и суммы $\sum_k |c_k|$ для $n = 1, \dots, 16$.
+
+# %%
+from fractions import Fraction
+from math import factorial
+
+
+def nc_weights(n):
+    # exact closed Newton—Cotes weights on [0,1], n intervals, n+1 nodes
+    ws = []
+    for k in range(n + 1):
+        roots = [Fraction(j) for j in range(n + 1) if j != k]
+        poly = [Fraction(1)]
+        for r in roots:
+            nxt = [Fraction(0)] * (len(poly) + 1)
+            for i, a in enumerate(poly):
+                nxt[i + 1] += a
+                nxt[i] -= a * r
+            poly = nxt
+        integ = Fraction(0)
+        for i, a in enumerate(poly):
+            integ += a * Fraction(n ** (i + 1), i + 1)
+        ws.append(Fraction((-1) ** (n - k), n * factorial(k) * factorial(n - k)) * integ)
+    return ws
+
+
+rows = []
+for n in range(1, 17):
+    ws = nc_weights(n)
+    assert sum(ws) == 1  # exactness on constants
+    rows.append((n, sum(w < 0 for w in ws), min(ws), sum(abs(w) for w in ws)))
+
+print(" n   #neg   min weight                sum|c|")
+for n, nneg, wmin, s in rows:
+    tag = "  <-- negative" if nneg else ""
+    print(f"{n:2d}   {nneg:3d}   {float(wmin):>18.12f}   {float(s):10.6f}{tag}")
+
+negative_set = [n for n, nneg, _, _ in rows if nneg]
+print("n с отрицательными весами (1..16):", negative_set)
+assert negative_set == [8] + list(range(10, 17)), negative_set
+
+check_golden("nc_min_weight_n8", float(min(nc_weights(8))))
+check_golden("nc_sumabs_n16", float(sum(abs(w) for w in nc_weights(16))))
+
+# %% [markdown]
+# **Вывод.** Предсказание [09] подтверждается для всех $n = 10, \dots, 16$,
+# но расчёт показывает больше: отрицательные веса появляются уже при $n = 8$,
+# а $n = 9$ — единственное исключение из $n \le 16$ (все веса положительны).
+# Формулировку [09] читаем как «при всех $n \ge 10$ есть отрицательные
+# коэффициенты», а границу уточняем: неустойчивость начинается с $n = 8$.
+# Сумма $\sum_k |c_k|$ у неустойчивых формул растёт с $n$ (при $n = 16$ —
+# $\approx 58$ против нормировки $\sum_k c_k = 1$): это и есть механизм
+# роста вычислительной погрешности из `theory.md`.
