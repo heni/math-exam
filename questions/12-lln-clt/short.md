@@ -75,11 +75,9 @@ $\Prob\{\abs{\overline X_N-a}\le z_{1-\alpha/2}\widehat\sigma_N/\sqrt N\}\to1-\a
 
 ## Методы и алгоритмы
 
-- **Метод Монте-Карло [A].** Для $u_k$ независимы и равномерны на $[0,1]$,
-$\int_0^1\abs{g}\,dx<\infty$: $I_N=\frac1N\sum_kg(u_k)\xrightarrow{\Prob}\int_0^1g\,dx$
-(ЗБЧ); при $0<\Var g(u_1)=\sigma_g^2<\infty$:
-$\Prob\{\abs{I_N-I}\le z_{1-\alpha/2}\sigma_g/\sqrt N\}\to1-\alpha$ (ЦПТ) —
-характерная точность $O(N^{-1/2})$, не зависящая от размерности.
+- **Метод Монте-Карло [A].** $I_N=\frac1N\sum_kg(u_k)\xrightarrow{\Prob}I$
+(ЗБЧ), контроль погрешности по ЦПТ — подробно в вопросе 17 (метод
+Монте-Карло).
 
 *Приложения [A]–[R]:* **Теорема (Линдеберг).** Независимые центрированные $\xi_k$,
 $s_N^2=\Var S_N$: условие $\frac{1}{s_N^2}\sum_k\E[\xi_k^2\mathbb 1_{\{\abs{\xi_k}\ge\tau s_N\}}]\to0$
