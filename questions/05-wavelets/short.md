@@ -17,8 +17,9 @@ $C_\psi=2\pi\int\abs{\hat\psi}^2/\abs{\xi}\,d\xi<\infty$.
 - **CWT:** $\psi^{a,b}(x)=\abs{a}^{-1/2}\psi\bigl(\frac{x-b}{a}\bigr)$,
 $(Wf)(a,b)=\scal{f}{\psi^{a,b}}$; $a$ — масштаб, $b$ — сдвиг.
 - **Фрейм:** $A\norm{f}^2\le\sum_j\abs{\scal{f}{\varphi_j}}^2\le B\norm{f}^2$;
-границы $A,B$; при $A=B$ — жёсткий; $B/A$ — избыточность. Фреймовый
-оператор $(Ff)_j=\scal{f}{\varphi_j}$.
+границы $A,B$; при $A=B$ — жёсткий; $B/A$ — обусловленность фреймового
+оператора (не избыточность: у продублированного ОН-базиса $A=B=2$, $B/A=1$).
+Фреймовый оператор $(Ff)_j=\scal{f}{\varphi_j}$.
 - **КМА (кратномасштабный анализ):** $V_j\subset V_{j+1}$;
 $\overline{\bigcup V_j}=L_2$, $\bigcap V_j=\{0\}$;
 $f\in V_j\Leftrightarrow f(2\cdot)\in V_{j+1}$; $V_0$ инвариантно при целых
