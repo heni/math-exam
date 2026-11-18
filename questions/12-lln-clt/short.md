@@ -41,7 +41,7 @@ $\Prob\{\abs{\xi-\E\xi}\ge a\}\le\Var\xi/a^2$ (множитель $1/a^2$ точ
 следствие Ляпунова: $(\E\abs{\xi}^s)^{1/s}\le(\E\abs{\xi}^t)^{1/t}$ при $s<t$.
 - **Т3 (соотношения сходимостей).** п.н. $\Rightarrow$ $\xrightarrow{\Prob}$
 $\Rightarrow$ $\xrightarrow{d}$; $L_2$ $\Rightarrow$ $\xrightarrow{\Prob}$;
-обратные импликации неверны (контрпримеры в конспекте).
+обратные импликации неверны.
 - **Т4 (слабый ЗБЧ, Чебышёв).** Попарно некоррелированные $\xi_k$,
 $\Var\xi_k\le C$: $\Prob\{\abs{\overline X_N-\E\overline X_N}\ge\varepsilon\}
 \le\frac{C}{N\varepsilon^2}\to0$. Следствия: для независимых

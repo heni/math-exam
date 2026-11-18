@@ -56,10 +56,13 @@ $N_h$: $\Var\widehat I_N^{\mathrm{str}}=\sum_hw_h^2\frac{\sigma_h^2}{N_h}$;
 оптимум — размещение по Нейману $N_h\propto w_h\sigma_h$, минимальная
 дисперсия $\frac1N\bigl(\sum_hw_h\sigma_h\bigr)^2\le\sigma^2/N$.
 
-*Расширенная часть:* выделение главной части ($\Var=\frac{1}{N}(\Var\zeta+\Var\zeta_1-2\cov(\zeta,\zeta_1))$),
-антитетические переменные ($\Var\widetilde\zeta=\frac{\Var\zeta+\cov(g(Q),g(Q'))}{2}\le\Var\zeta$),
-квазислучайные сетки Дупача: $\Var\widetilde\theta_N^{*}\le c^2L^2N^{-1-2/n}$,
-$c=nc_1c_2$.
+*Уменьшение дисперсии [A]:* выделение главной части
+($\Var=\frac{1}{N}(\Var\zeta+\Var\zeta_1-2\cov(\zeta,\zeta_1))$),
+антитетические переменные
+($\Var\widetilde\zeta=\frac{\Var\zeta+\cov(g(Q),g(Q'))}{2}\le\Var\zeta$).
+
+*Квазислучайные сетки [R]:* сетки Дупача:
+$\Var\widetilde\theta_N^{*}\le c^2L^2N^{-1-2/n}$, $c=nc_1c_2$.
 
 *Замечания:* метод обоснован ЗБЧ (вопрос 12), точность — ЦПТ; порядок
 $O(N^{-1/2})$ не зависит от размерности, константа через дисперсию — может.
