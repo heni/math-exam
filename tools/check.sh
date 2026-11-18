@@ -45,12 +45,19 @@ for src in questions/*/theory.md questions/*/slides.md questions/*/short.md; do
   pdf="${src%.md}.pdf"
   if [ -e "$pdf" ] && [ "$src" -nt "$pdf" ]; then bad "$pdf старше $src — нужен make"; fi
 done
-# Единый сборник question-shorts.pdf склеивается из всех short.md: свежесть
-# сверяется с самым новым из них (инструмент читает short.md, а не PDF).
+# Единый сборник question-shorts.pdf склеивается из всех short.md инструментом
+# tools/shorts.sh: свежесть сверяется с самым новым из них (инструмент читает
+# short.md, а не PDF) и со всеми остальными источниками сборника из Makefile-зависимостей
+# — правка легенды (страница обозначений) или преамбулы иначе пройдёт
+# протухшим PDF.
 latest_short=$(ls -t questions/*/short.md 2>/dev/null | head -1)
-if [ -n "$latest_short" ] && [ -e question-shorts.pdf ] && [ "$latest_short" -nt question-shorts.pdf ]; then
-  bad "question-shorts.pdf старше $latest_short — нужен make"
-fi
+for src in "$latest_short" tools/shorts.sh build/defaults-short.yaml \
+           build/preamble-theory.tex build/preamble-short.tex build/preamble-shortscover.tex; do
+  [ -n "$src" ] && [ -e "$src" ] || continue
+  if [ -e question-shorts.pdf ] && [ "$src" -nt question-shorts.pdf ]; then
+    bad "question-shorts.pdf старше $src — нужен make"
+  fi
+done
 for src in questions/*/examples.py; do
   [ -e "$src" ] || continue
   nb="${src%.py}.ipynb"
