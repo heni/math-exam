@@ -612,6 +612,8 @@ $$
 данных, а не шаг обучения.
 \end{corollary}
 
+
+
 \begin{proof}
 Минимизируем по $\alpha$ функцию $\varphi(\alpha) = c_1 \alpha + c_2
 \varepsilon \alpha^{-1/2}$ с $c_1 = \norm{q_T}/\lambda_r$, $c_2 = 1/2$.
@@ -622,6 +624,36 @@ $\varphi'(\alpha) = c_1 - \tfrac12 c_2 \varepsilon \alpha^{-3/2} = 0$,
 пропорциональность). Подстановка даёт $\varphi \sim c_1 \varepsilon^{2/3}
 + c_2 \varepsilon^{1-1/3} = O(\varepsilon^{2/3})$.
 \end{proof}
+
+\begin{remark}[истокопредставимость и насыщение]\label{rem:tikhonov-saturation}
+Оценка \eqref{eq:tikhonov-rate} конечномерна. В общей постановке скорость
+требует истокопредставимости $q_T = (A^*A)^{p/2} v$ с $0 < p \le 2$
+(ниже $q^0 = 0$): спектральный исчисление нормального уравнения даёт
+$$ \|q_{\alpha\delta} - q_T\| \le C_p\, \alpha^{p/2} \|v\| +
+\frac{\delta}{2\sqrt\alpha}, \qquad
+C_p = \sup_{\lambda > 0} \frac{\alpha^{1-p/2}\, \lambda^{p/2}}{\lambda + \alpha}, $$
+поскольку $\sup_{\lambda>0} \alpha \lambda^{p/2} / (\lambda + \alpha)
+\le C_p\, \alpha^{p/2}$ при $p \le 2$ (при $p < 2$ максимум функции
+$\lambda \mapsto \lambda^{p/2}/(\lambda+\alpha)$ достигается на
+$\lambda \asymp \alpha$, при $p = 2$ супремум равен $1$, то есть $C_2 = 1$).
+Балансировка $\alpha \asymp \delta^{2/(p+1)}$ даёт
+$\|q_{\alpha\delta} - q_T\| = O(\delta^{p/(p+1)})$; при $p = 2$ это
+оценка следствия \ref{cor:rate-balance}.
+
+Порядок $O(\delta^{2/3})$ для стандартного метода Тихонова предельный в
+общей некорректной постановке (эффект насыщения): при $p > 2$ функция
+$\lambda \mapsto \lambda^{p/2}/(\lambda+\alpha)$ растёт на рабочем
+диапазоне $\lambda \le \|A\|^2$, смещение имеет порядок $\alpha$ при
+любом $p > 2$, и балансировка снова даёт лишь $O(\delta^{2/3})$; более
+высокие порядки требуют иной регуляризации (итерированной Тихонова и т. п.)
+или дополнительных условий на задачу. Оценка выведена при $q^0 = 0$; при $q^0 \ne 0$ предел — элемент,
+ближайший к $q^0$ (замечание \ref{rem:tikhonov-conv}). В
+конечномерном разрешимом случае с $\lambda_r > 0$ точность $O(\delta)$
+достижима: при $\alpha \ll \lambda_r$ спектр $A^*A$ ограничен снизу
+$\lambda_r$, усиление шума оценивается $\sqrt{\lambda_r}/(\lambda_r +
+\alpha) \le 1/\sqrt{\lambda_r}$ вместо $1/(2\sqrt\alpha)$, и оба
+члена имеют порядок $O(\delta)$ при $\alpha \sim \delta$.
+\end{remark}
 
 \begin{remark}\label{rem:rate}
 Число $\varepsilon^{2/3}$ — цена устойчивости: при данных точности $\varepsilon$ решение восстанавливается лишь с точностью $\varepsilon^{2/3} \gg \varepsilon$. Показатель определяется соперничеством двух членов \eqref{eq:tikhonov-rate}: смещения, линейного по $\alpha$, и дисперсии $\delta/\sqrt\alpha$; лемма \ref{lem:tikhonov-rate} — прямой аналог разложения теоремы \ref{thm:bias-variance}. Для неразрешимого уравнения (псевдорешение) точность падает до $O(\varepsilon^{1/2})$ при $\alpha \sim \varepsilon^{1/2}$ [14] (Кабанихин).
